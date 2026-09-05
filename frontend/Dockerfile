@@ -11,6 +11,10 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Bake the API upstream at build time (standalone serializes next.config).
+# Default to the docker-compose service name; local dev overrides this.
+ARG API_UPSTREAM=http://backend:8000
+ENV API_UPSTREAM=$API_UPSTREAM
 RUN npm run build
 
 # Production

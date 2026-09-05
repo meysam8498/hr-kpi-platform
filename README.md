@@ -52,8 +52,7 @@
 ## شروع سریع (Docker)
 
 ```bash
-cd kpi-system
-docker-compose up --build -d
+docker compose up --build -d
 
 # دسترسی:
 # فرانت‌اند: http://localhost:3000
@@ -64,14 +63,39 @@ docker-compose up --build -d
 ### دستورات Docker
 
 ```bash
-docker-compose up --build   # اجرا و ساخت
-docker-compose up -d        # اجرا در پس‌زمینه
-docker-compose down         # توقف
-docker-compose logs -f backend   # لاگ بک‌اند
-docker-compose logs -f frontend  # لاگ فرانت‌اند
+docker compose up --build   # اجرا و ساخت
+docker compose up -d        # اجرا در پس‌زمینه
+docker compose down         # توقف
+docker compose logs -f backend   # لاگ بک‌اند
+docker compose logs -f frontend  # لاگ فرانت‌اند
 ```
 
-**داده‌های SQLite** در حجم `db-data` (مپ‌شده به `/app/data` در کانتینر) نگهداری می‌شوند و با `docker-compose down` از بین نمی‌روند.
+**داده‌های SQLite** در حجم `db-data` (مپ‌شده به `/app/data` در کانتینر) نگهداری می‌شوند و با `docker compose down` از بین نمی‌روند. دادهٔ نمونه (تیم‌ها، معیارها و کارمندان) به‌صورت خودکار هنگام اولین اجرا seed می‌شود؛ برای شروع از نو، حجم را حذف کنید: `docker volume rm kpi-calc_db-data`.
+
+### انتشار به GitHub و Docker Hub
+
+اسکریپت `release.sh` همهٔ مراحل (ساخت ریپو، push و تگ‌زدن ایمیج‌ها) را یکجا انجام می‌دهد:
+
+```bash
+bash release.sh           # پیش‌فرض: نسخهٔ v1.0.1
+bash release.sh v1.1.0    # با نسخهٔ دلخواه
+```
+
+قبل از اجرا، یک‌بار وارد حساب‌های خود شوید:
+
+```bash
+docker login -u meysam8498        # داکر هاب
+gh auth login                      # گیت‌هاب (یا یک Personal Access Token)
+```
+
+پس از آن، ایمیج‌ها با نام‌های زیر روی Docker Hub می‌نشینند:
+
+```
+meysam8498/hr-kpi-platform:backend-<نسخه>
+meysam8498/hr-kpi-platform:frontend-<نسخه>
+meysam8498/hr-kpi-platform:backend-latest
+meysam8498/hr-kpi-platform:frontend-latest
+```
 
 ---
 

@@ -1,0 +1,40 @@
+# ─── Python / Backend ───
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# ─── Database (local data — never commit) ───
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+backend/data/
+*.sqlite
+*.sqlite3
+
+# ─── Node / Frontend ───
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/tsconfig.tsbuildinfo
+*.tsbuildinfo
+npm-debug.log*
+
+# ─── Environment ───
+.env
+.env.local
+.env.*.local
+!.env.example
+!frontend/.env.example
+
+# ─── Editor / OS ───
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ─── Freebuff / local tooling ───
+.freebuff/
+*.log

@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { Star, Sparkles } from 'lucide-react'
+import { IdCard as IdCardIcon, Settings as SettingsIcon } from 'lucide-react'
 import AppLayout from '@/components/Layout'
 import { teamsApi, employeesApi, kpiApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod, KPICriterion, TeamKPIConfig, KPIEntry } from '@/lib/api'
+import { Avatar, EmptyState, TableSkeleton, ScorePill } from '@/components/ui'
+import { useToast } from '@/components/Toast'
+import { toPersianNums } from '@/lib/jalali'
 
 export default function ScoringPage() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -21,9 +25,9 @@ export default function ScoringPage() {
   const [scores, setScores] = useState<Record<number, number>>({})
   const [comments, setComments] = useState<Record<number, string>>({})
   const [saving, setSaving] = useState(false)
-  const [result, setResult] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [kpiResult, setKpiResult] = useState<any>(null)
+  const toast = useToast()
 
   useEffect(() => {
     Promise.all([
@@ -96,7 +100,6 @@ export default function ScoringPage() {
   const handleSave = async () => {
     if (!selectedEmp || !selectedPeriod) return
     setSaving(true)
-    setResult(null)
     try {
       const scoreItems = teamCriteriaDetails.map(tc => ({
         criterion_id: tc.criterion_id,
@@ -105,7 +108,7 @@ export default function ScoringPage() {
       })).filter(item => scores[item.criterion_id] !== undefined)
 
       if (scoreItems.length === 0) {
-        setResult({ type: 'error', msg: 'حداقل یک نمره وارد کنید' })
+        toast.warning('حداقل یک نمره وارد کنید')
         return
       }
 
@@ -117,30 +120,30 @@ export default function ScoringPage() {
       } catch {}
 
       const emp = employees.find(e => e.id === selectedEmp)
-      setResult({ type: 'success', msg: `${scoreItems.length} نمره برای ${emp?.first_name} ${emp?.last_name} ثبت شد ✅` })
+      toast.success(`${scoreItems.length} نمره برای ${emp?.first_name} ${emp?.last_name} ثبت شد`)
 
       const entries = await kpiApi.listEntries(selectedEmp, selectedPeriod)
       setExistingEntries(entries)
     } catch (err: any) {
       const msg = typeof err.message === 'string' ? err.message : JSON.stringify(err)
-      setResult({ type: 'error', msg: msg || 'خطا در ذخیره نمرات' })
+      toast.error(msg || 'خطا در ذخیره نمرات')
     } finally {
       setSaving(false)
     }
   }
 
   const resetForm = () => {
-    setScores({}); setComments({}); setKpiResult(null); setResult(null)
+    setScores({}); setComments({}); setKpiResult(null)
   }
 
   const handleEmployeeChange = (empId: number) => {
-    setSelectedEmp(empId); setKpiResult(null); setResult(null)
+    setSelectedEmp(empId); setKpiResult(null)
   }
 
   if (loading) return (
     <AppLayout>
-      <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
-        <div className="spinner" style={{ width: 28, height: 28 }} />
+      <div className="animate-fadeIn" style={{ padding: '8px 0' }}>
+        <TableSkeleton rows={5} cols={3} />
       </div>
     </AppLayout>
   )
@@ -304,15 +307,7 @@ export default function ScoringPage() {
                           }}
                         />
                         {hasScore && (
-                          <span
-                            className="score-badge"
-                            style={{
-                              fontSize: '0.7rem',
-                              padding: '3px 10px',
-                            }}
-                          >
-                            {score! >= 70 ? 'خوب' : score! >= 50 ? 'متوسط' : 'ضعیف'}
-                          </span>
+                          <ScorePill score={score} size="sm" />
                         )}
                       </div>
                     </div>
@@ -368,23 +363,7 @@ export default function ScoringPage() {
               <button onClick={resetForm} className="btn btn-ghost">پاک کردن</button>
             </div>
 
-            {/* Result Message */}
-            {result && (
-              <div
-                className="animate-fadeIn"
-                style={{
-                  marginTop: 16,
-                  padding: '12px 16px',
-                  borderRadius: 10,
-                  fontSize: '0.85rem',
-                  background: result.type === 'success' ? 'var(--accent-success-subtle)' : 'var(--accent-danger-subtle)',
-                  color: result.type === 'success' ? 'var(--accent-success)' : 'var(--accent-danger)',
-                  border: `1px solid ${result.type === 'success' ? 'var(--accent-success)' : 'var(--accent-danger)'}`,
-                }}
-              >
-                {result.msg}
-              </div>
-            )}
+            {/* Result Message — now via toasts */}
 
             {/* KPI Result */}
             {kpiResult && (
@@ -410,7 +389,7 @@ export default function ScoringPage() {
                       fontWeight: 800,
                       color: kpiResult.final_score >= 70 ? 'var(--accent-success)' : kpiResult.final_score >= 50 ? 'var(--accent-warning)' : 'var(--accent-danger)',
                     }}>
-                      {toPersianNums(String(kpiResult.final_score))}
+                      {toPersianNums(kpiResult.final_score.toFixed(1))}
                     </div>
                   </div>
                   <div className="flex-1">
@@ -446,28 +425,29 @@ export default function ScoringPage() {
 
         {/* Empty States */}
         {selectedEmp === 0 && selectedTeam > 0 && (
-          <div className="card" style={{ padding: 48 }}>
-            <div className="empty-state">
-              <div className="empty-state-icon">👤</div>
-              <div className="empty-state-title">یک کارمند انتخاب کنید</div>
-              <div className="empty-state-desc">فرم امتیازدهی بر اساس معیارهای تنظیم‌شده تیم نمایش داده می‌شود</div>
-            </div>
+          <div className="card" style={{ padding: 20 }}>
+            <EmptyState
+              icon={IdCardIcon}
+              title="یک کارمند انتخاب کنید"
+              description="فرم امتیازدهی بر اساس معیارهای تنظیم‌شده تیم نمایش داده می‌شود"
+            />
           </div>
         )}
 
         {selectedTeam > 0 && selectedEmp > 0 && teamCriteriaDetails.length === 0 && (
-          <div className="card" style={{ padding: 48 }}>
-            <div className="empty-state">
-              <div className="empty-state-icon">⚙️</div>
-              <div className="empty-state-title">هیچ معیار KPI تنظیم نشده</div>
-              <div className="empty-state-desc">ابتدا از بخش «تنظیمات KPI» معیارها و وزن‌ها را تعیین کنید</div>
-            </div>
+          <div className="card" style={{ padding: 20 }}>
+            <EmptyState
+              icon={SettingsIcon}
+              title="هیچ معیار KPI تنظیم نشده"
+              description="ابتدا از بخش «تنظیمات KPI» معیارها و وزن‌ها را تعیین کنید"
+              action={<a href="/admin/config" className="btn btn-primary btn-sm">رفتن به تنظیمات</a>}
+            />
           </div>
         )}
 
         {/* Help Box */}
         <div className="info-box info-box-primary" style={{ marginTop: 20 }}>
-          <strong>📌 راهنمای امتیازدهی:</strong>
+          <strong>راهنمای امتیازدهی:</strong>
           <ol style={{ marginTop: 8, paddingRight: 16, listStyle: 'decimal' }}>
             <li>تیم و دوره مورد نظر را انتخاب کنید</li>
             <li>کارمند مورد نظر را از لیست انتخاب کنید</li>
@@ -481,7 +461,3 @@ export default function ScoringPage() {
   )
 }
 
-function toPersianNums(input: string | number): string {
-  const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(input).replace(/\d/g, d => persianDigits[parseInt(d)])
-}

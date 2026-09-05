@@ -6,7 +6,9 @@ import AppLayout from '@/components/Layout'
 import { teamsApi, employeesApi, kpiApi, goalsApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod, Goal } from '@/lib/api'
 import { toPersianNums } from '@/lib/jalali'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar } from 'recharts'
+import { Printer, UserRound, ClipboardList, PieChart, ListChecks } from 'lucide-react'
+import { ScorePill, EmptyState, Avatar, TableSkeleton } from '@/components/ui'
 
 export default function ReportsPage() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -60,12 +62,26 @@ export default function ReportsPage() {
     .sort((a, b) => new Date(a.calculated_at).getTime() - new Date(b.calculated_at).getTime())
     .map(r => ({ name: r.period_name, score: r.final_score }))
 
+  // Latest period's per-criterion scores for the radar chart
+  const latestBreakdownCriteria: { name: string; score: number }[] = (() => {
+    if (empResults.length === 0) return []
+    const latest = empResults
+      .slice()
+      .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0]
+    const bd = latest?.breakdown as Record<string, any> | null | undefined
+    const list = (bd?.criteria || []) as any[]
+    return list.map((c) => ({
+      name: String(c.criterion_name || '').slice(0, 18),
+      score: Number(c.score) || 0,
+    }))
+  })()
+
   const printView = () => window.print()
 
   if (loading) return (
     <AppLayout>
-      <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
-        <div className="spinner" style={{ width: 28, height: 28 }} />
+      <div className="animate-fadeIn" style={{ padding: '8px 0' }}>
+        <TableSkeleton rows={7} cols={4} />
       </div>
     </AppLayout>
   )
@@ -78,7 +94,7 @@ export default function ReportsPage() {
             <h1 className="page-title">گزارش‌ها</h1>
             <p className="page-subtitle">گزارش عملکرد تیمی و فردی — قابل چاپ و ذخیره به صورت PDF</p>
           </div>
-          <button className="btn btn-outline" onClick={printView}>🖨 چاپ / PDF</button>
+          <button className="btn btn-outline" onClick={printView}><Printer size={15} /> چاپ / PDF</button>
         </div>
 
         {/* View Toggle */}
@@ -154,6 +170,7 @@ export default function ReportsPage() {
             <div className="flex flex-col gap-3">
               {(teamReport.members || []).map((m: any) => (
                 <div key={m.employee_id} className="flex items-center gap-3" style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--bg-tertiary)' }}>
+                  <Avatar name={m.employee_name} size={34} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>{m.employee_name}</div>
                     <div style={{ fontSize: '0.62rem', color: 'var(--text-tertiary)' }}>{m.employee_code}</div>
@@ -161,9 +178,7 @@ export default function ReportsPage() {
                   <div className="progress-track" style={{ flex: 2 }}>
                     <div className="progress-fill" style={{ width: `${Math.min(m.final_score, 100)}%`, background: m.final_score >= 80 ? 'var(--gradient-success)' : m.final_score >= 60 ? 'var(--gradient-primary)' : 'var(--gradient-danger)' }} />
                   </div>
-                  <span className={`score-badge ${m.final_score >= 80 ? 'score-excellent' : m.final_score >= 60 ? 'score-good' : 'score-poor'}`} style={{ minWidth: 56 }}>
-                    {toPersianNums(String(m.final_score))}
-                  </span>
+                  <ScorePill score={m.final_score} />
                 </div>
               ))}
             </div>
@@ -174,21 +189,53 @@ export default function ReportsPage() {
         {view === 'employee' && (
           <div className="flex flex-col gap-6">
             {selectedEmp === 0 ? (
-              <div className="card empty-state" style={{ padding: 40 }}>
-                <div className="empty-state-icon">👤</div>
-                <div className="empty-state-title">یک کارمند را انتخاب کنید</div>
+              <div className="card">
+                <EmptyState
+                  icon={UserRound}
+                  title="یک کارمند را انتخاب کنید"
+                  description="گزارش فردی شامل روند نمرات، رادار معیارها و اهداف نمایش داده می‌شود"
+                />
               </div>
             ) : empResults.length === 0 ? (
-              <div className="card empty-state" style={{ padding: 40 }}>
-                <div className="empty-state-icon"><HeadIcon glyph="📋" /></div>
-                <div className="empty-state-title">هنوز امتیازی برای این کارمند ثبت نشده</div>
+              <div className="card">
+                <EmptyState
+                  icon={ClipboardList}
+                  title="هنوز امتیازی برای این کارمند ثبت نشده"
+                  description="از صفحه امتیازدهی می‌توانید نمرات این کارمند را وارد کنید"
+                />
               </div>
             ) : (
               <>
-                <div className="card" style={{ padding: 24 }}>
+                {/* Latest score gauge + trend side by side */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: 4 }}>آخرین نمره نهایی</div>
+                    <div style={{ width: 170, height: 170 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadialBarChart
+                          innerRadius="68%"
+                          outerRadius="100%"
+                          data={[{ name: 'score', value: historyData[historyData.length - 1]?.score ?? 0, fill: 'var(--accent-primary)' }]}
+                          startAngle={90}
+                          endAngle={-270}
+                        >
+                          <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                          <RadialBar background={{ fill: 'var(--bg-tertiary)' }} dataKey="value" cornerRadius={12} />
+                        </RadialBarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div style={{ marginTop: -118, marginBottom: 74, textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                        {toPersianNums((historyData[historyData.length - 1]?.score ?? 0).toFixed(1))}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}>از ۱۰۰</div>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-2 card" style={{ padding: 24 }}>
                   <div className="card-header">
                     <div className="card-header-title">
-                      <span className="card-header-icon"><HeadIcon glyph="◐" /></span>
+                      <span className="card-header-icon"><PieChart size={14} /></span>
                       روند نمرات در طول زمان
                     </div>
                   </div>
@@ -199,14 +246,41 @@ export default function ReportsPage() {
                         <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }} tickFormatter={(v: string) => (v.length > 12 ? v.slice(0, 11) + '…' : v)} />
                         <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }} />
                         <Tooltip
-                          formatter={(v) => [toPersianNums(String(v)), 'نمره نهایی']}
+                          formatter={(v) => [toPersianNums(Number(v).toFixed(1)), 'نمره نهایی']}
                           contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 10, fontSize: 12, direction: 'rtl' }}
                         />
                         <Line type="monotone" dataKey="score" stroke="var(--accent-primary)" strokeWidth={2.5} dot={{ r: 4, fill: 'var(--accent-primary)' }} activeDot={{ r: 6 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                  </div>
                 </div>
+
+                {/* Criteria radar — strengths/weaknesses profile */}
+                {latestBreakdownCriteria.length >= 3 && (
+                  <div className="card" style={{ padding: 24 }}>
+                    <div className="card-header">
+                      <div className="card-header-title">
+                        <span className="card-header-icon"><ListChecks size={14} /></span>
+                        پروفایل معیارها (رادار)
+                      </div>
+                    </div>
+                    <div style={{ width: '100%', height: 260 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={latestBreakdownCriteria} outerRadius="72%">
+                          <PolarGrid stroke="var(--border-secondary)" />
+                          <PolarAngleAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
+                          <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                          <Radar dataKey="score" stroke="var(--accent-primary)" fill="var(--accent-primary)" fillOpacity={0.25} strokeWidth={2} />
+                          <Tooltip
+                            formatter={(v) => [toPersianNums(Number(v).toFixed(1)), 'نمره']}
+                            contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 10, fontSize: 12, direction: 'rtl' }}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
 
                 {empGoals.length > 0 && (
                   <div className="card" style={{ padding: 24 }}>
@@ -242,7 +316,7 @@ export default function ReportsPage() {
                 <div className="card" style={{ padding: 24 }}>
                   <div className="card-header">
                     <div className="card-header-title">
-                      <span className="card-header-icon"><HeadIcon glyph="📋" /></span>
+                      <span className="card-header-icon"><ListChecks size={14} /></span>
                       جزئیات دوره‌ها
                     </div>
                   </div>
@@ -269,9 +343,7 @@ export default function ReportsPage() {
                             )
                           })()}
                         </div>
-                        <span className={`score-badge ${r.final_score >= 80 ? 'score-excellent' : r.final_score >= 60 ? 'score-good' : 'score-poor'}`}>
-                          {toPersianNums(String(r.final_score))}
-                        </span>
+                        <ScorePill score={r.final_score} />
                       </div>
                     ))}
                   </div>

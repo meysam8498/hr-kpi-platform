@@ -1103,6 +1103,229 @@ input[type="number"] { -moz-appearance: textfield; }
   outline-offset: 2px;
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   SKELETON — shimmer loading placeholder
+   ══════════════════════════════════════════════════════════════════ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-hover) 45%,
+    var(--bg-tertiary) 65%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TOAST — entrance animation
+   ══════════════════════════════════════════════════════════════════ */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   DASHBOARD HERO — aurora band with pattern + glow
+   ══════════════════════════════════════════════════════════════════ */
+.hero-band {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 26px 28px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse 60% 90% at 85% 10%, rgba(139, 109, 215, 0.35), transparent 60%),
+    radial-gradient(ellipse 50% 80% at 15% 90%, rgba(58, 150, 212, 0.28), transparent 60%),
+    linear-gradient(135deg, #2a2d4a 0%, #1e2140 55%, #26204a 100%);
+  border: 1px solid rgba(124, 138, 224, 0.25);
+  box-shadow: 0 8px 32px rgba(26, 28, 46, 0.25);
+  margin-bottom: 24px;
+}
+
+/* Geometric accents (book-of-shapes) — two floating rings */
+.hero-band::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: -40px;
+  width: 190px;
+  height: 190px;
+  border: 1.5px solid rgba(255, 255, 255, 0.07);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hero-band::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  right: 12%;
+  width: 230px;
+  height: 230px;
+  border: 1.5px solid rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Fine dot texture inside hero */
+.hero-texture {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.06) 1px, transparent 0);
+  background-size: 18px 18px;
+  pointer-events: none;
+}
+
+.hero-greeting {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.hero-sub {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin-top: 3px;
+}
+
+/* Hero clock chip (glass) */
+.hero-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 22px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+}
+
+.hero-clock-time {
+  font-size: 1.7rem;
+  font-weight: 800;
+  font-family: 'Vazirmatn', monospace;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  line-height: 1.1;
+}
+
+.hero-clock-date {
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   COMMAND PALETTE (Ctrl+K)
+   ══════════════════════════════════════════════════════════════════ */
+.cmdk-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(10, 12, 20, 0.55);
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.15s ease;
+  display: flex;
+  justify-content: center;
+  padding-top: 12vh;
+}
+
+.cmdk-panel {
+  width: min(600px, calc(100vw - 40px));
+  height: fit-content;
+  max-height: 60vh;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: scaleIn 0.18s ease;
+}
+
+.cmdk-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border-secondary);
+  background: transparent;
+  border-radius: 0;
+  font-size: 0.95rem;
+  padding: 16px 20px;
+}
+
+.cmdk-input:focus {
+  box-shadow: none;
+  border-bottom: 1px solid var(--border-focus);
+}
+
+.cmdk-list {
+  overflow-y: auto;
+  padding: 8px;
+  flex: 1;
+}
+
+.cmdk-group-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  padding: 10px 12px 4px;
+  letter-spacing: 0.03em;
+}
+
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.83rem;
+  color: var(--text-primary);
+}
+
+.cmdk-item[data-active="true"] {
+  background: var(--accent-primary-subtle);
+  color: var(--accent-primary);
+}
+
+.cmdk-kbd {
+  margin-inline-start: auto;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: 'Vazirmatn', monospace;
+}
+
+/* Sidebar collapsible group chevron rotation */
+.nav-group-chevron {
+  transition: transform 0.2s ease;
+}
+
+.nav-group-collapsed .nav-group-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Route transition (applied to page wrappers) */
+.route-fade {
+  animation: fadeIn 0.3s ease-out both;
+}
+
+/* Sticky bulk bar helper */
+.bulkbar {
+  position: sticky;
+  bottom: 16px;
+}
+
 /* Skip link for accessibility */
 .sr-only {
   position: absolute;

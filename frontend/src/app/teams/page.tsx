@@ -7,6 +7,8 @@ import { teamsApi, employeesApi } from '@/lib/api'
 import { gregorianToJalaliStr, jalaliToGregorianStr, toPersianNums } from '@/lib/jalali'
 import JalaliDatePicker from '@/components/JalaliDatePicker'
 import type { Team, Employee } from '@/lib/api'
+import { Avatar, StatusChip, EmptyState, TableSkeleton } from '@/components/ui'
+import { useToast } from '@/components/Toast'
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -18,6 +20,7 @@ export default function TeamsPage() {
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamDesc, setNewTeamDesc] = useState('')
   const [loading, setLoading] = useState(true)
+  const toast = useToast()
 
   const [mForm, setMForm] = useState({
     employee_code: '', first_name: '', last_name: '',
@@ -33,14 +36,29 @@ export default function TeamsPage() {
   useEffect(() => { load() }, [])
 
   const createTeam = async () => {
-    if (!newTeamName.trim()) return
-    await teamsApi.create({ name: newTeamName, description: newTeamDesc })
-    setNewTeamName(''); setNewTeamDesc(''); setShowCreateForm(false); load()
+    if (!newTeamName.trim()) {
+      toast.warning('نام تیم را وارد کنید')
+      return
+    }
+    try {
+      await teamsApi.create({ name: newTeamName, description: newTeamDesc })
+      toast.success('تیم ایجاد شد')
+      setNewTeamName(''); setNewTeamDesc(''); setShowCreateForm(false); load()
+    } catch (e: any) {
+      toast.error(e.message || 'خطا در ایجاد تیم')
+    }
   }
 
   const deleteTeam = async (id: number, name: string) => {
     if (!confirm(`تیم "${name}" حذف شود؟`)) return
-    await teamsApi.delete(id); load()
+    try {
+      await teamsApi.delete(id)
+      toast.success('تیم حذف شد')
+      if (selectedTeam === id) setSelectedTeam(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.message || 'خطا در حذف تیم')
+    }
   }
 
   const openAddMember = () => {
@@ -57,25 +75,50 @@ export default function TeamsPage() {
   }
 
   const addMember = async () => {
-    if (!selectedTeam || !mForm.employee_code || !mForm.first_name || !mForm.last_name) return
-    await employeesApi.create({ ...mForm, team_id: selectedTeam, hire_date: jalaliToGregorianStr(mForm.hire_date) || '1400-01-01', phone: mForm.phone || undefined })
-    setShowAddMember(false); load()
+    if (!selectedTeam || !mForm.employee_code || !mForm.first_name || !mForm.last_name) {
+      toast.warning('کد پرسنلی، نام و نام خانوادگی الزامی است')
+      return
+    }
+    try {
+      await employeesApi.create({ ...mForm, team_id: selectedTeam, hire_date: jalaliToGregorianStr(mForm.hire_date) || '1400-01-01', phone: mForm.phone || undefined })
+      toast.success('عضو جدید اضافه شد')
+      setShowAddMember(false); load()
+    } catch (e: any) {
+      toast.error(e.message || 'خطا در افزودن عضو')
+    }
   }
 
   const updateMember = async () => {
     if (!showEditMember) return
-    await employeesApi.update(showEditMember.id, { ...mForm, hire_date: jalaliToGregorianStr(mForm.hire_date) || '1400-01-01', phone: mForm.phone || undefined })
-    setShowEditMember(null); load()
+    try {
+      await employeesApi.update(showEditMember.id, { ...mForm, hire_date: jalaliToGregorianStr(mForm.hire_date) || '1400-01-01', phone: mForm.phone || undefined })
+      toast.success('تغییرات ذخیره شد')
+      setShowEditMember(null); load()
+    } catch (e: any) {
+      toast.error(e.message || 'خطا در ذخیره تغییرات')
+    }
   }
 
   const removeMember = async (id: number, name: string) => {
     if (!confirm(`"${name}" از تیم حذف شود؟`)) return
-    await employeesApi.delete(id); load()
+    try {
+      await employeesApi.delete(id)
+      toast.success('عضو حذف شد')
+      load()
+    } catch (e: any) {
+      toast.error(e.message || 'خطا در حذف')
+    }
   }
 
   const archiveMember = async (id: number, name: string) => {
     if (!confirm(`"${name}" به آرشیو منتقل شود؟`)) return
-    await employeesApi.archive(id); load()
+    try {
+      await employeesApi.archive(id)
+      toast.success('به آرشیو منتقل شد')
+      load()
+    } catch (e: any) {
+      toast.error(e.message || 'خطا در آرشیو')
+    }
   }
 
   const teamEmployees = selectedTeam ? employees.filter(e => e.team_id === selectedTeam && !e.is_archived) : []
@@ -83,8 +126,8 @@ export default function TeamsPage() {
 
   if (loading) return (
     <AppLayout>
-      <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
-        <div className="spinner" style={{ width: 28, height: 28 }} />
+      <div className="animate-fadeIn" style={{ padding: '8px 0' }}>
+        <TableSkeleton rows={6} cols={4} />
       </div>
     </AppLayout>
   )
@@ -171,13 +214,11 @@ export default function TeamsPage() {
           {/* Team Members */}
           <div className="lg:col-span-2 card" style={{ padding: 20 }}>
             {!selectedTeam ? (
-              <div className="empty-state">
-                <div className="empty-state-icon" style={{ color: 'var(--accent-primary)', opacity: 0.4 }}>
-                  <Building2 size={40} strokeWidth={1.2} />
-                </div>
-                <div className="empty-state-title">یک تیم را انتخاب کنید</div>
-                <div className="empty-state-desc">لیست اعضای تیم انتخاب‌شده در اینجا نمایش داده می‌شود</div>
-              </div>
+              <EmptyState
+                icon={Building2}
+                title="یک تیم را انتخاب کنید"
+                description="لیست اعضای تیم انتخاب‌شده در اینجا نمایش داده می‌شود"
+              />
             ) : (
               <>
                 <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
@@ -188,13 +229,12 @@ export default function TeamsPage() {
                 </div>
 
                 {teamEmployees.length === 0 && archivedTeamEmployees.length === 0 ? (
-                  <div className="empty-state" style={{ padding: 32 }}>
-                    <div className="empty-state-icon" style={{ color: 'var(--text-tertiary)', opacity: 0.4 }}>
-                      <UsersRound size={40} strokeWidth={1.2} />
-                    </div>
-                    <div className="empty-state-title">هیچ عضوی ندارد</div>
-                    <div className="empty-state-desc">اولین عضو را اضافه کنید</div>
-                  </div>
+                  <EmptyState
+                    icon={UsersRound}
+                    title="هیچ عضوی ندارد"
+                    description="اولین عضو را اضافه کنید"
+                    action={<button onClick={openAddMember} className="btn btn-primary btn-sm">افزودن عضو</button>}
+                  />
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table className="table">
@@ -216,12 +256,17 @@ export default function TeamsPage() {
                                 {emp.employee_code}
                               </span>
                             </td>
-                            <td style={{ fontWeight: 600 }}>{emp.first_name} {emp.last_name}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Avatar name={`${emp.first_name} ${emp.last_name}`} size={32} />
+                                <span style={{ fontWeight: 600 }}>{emp.first_name} {emp.last_name}</span>
+                              </div>
+                            </td>
                             <td style={{ color: 'var(--text-secondary)' }}>{emp.position}</td>
                             <td style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
                               {toPersianNums(gregorianToJalaliStr(emp.hire_date))}
                             </td>
-                            <td><span className="badge badge-success">فعال</span></td>
+                            <td><StatusChip kind="active">فعال</StatusChip></td>
                             <td>
                               <div className="flex items-center gap-1" style={{ justifyContent: 'center' }}>
                                 <button onClick={() => openEditMember(emp)} className="btn btn-ghost btn-sm" title="ویرایش" style={{ padding: '4px 8px', minHeight: 28, fontSize: '0.7rem' }}><Pencil size={12} /></button>
@@ -238,12 +283,17 @@ export default function TeamsPage() {
                                 {emp.employee_code}
                               </span>
                             </td>
-                            <td style={{ fontWeight: 600 }}>{emp.first_name} {emp.last_name}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Avatar name={`${emp.first_name} ${emp.last_name}`} size={32} archived />
+                                <span style={{ fontWeight: 600 }}>{emp.first_name} {emp.last_name}</span>
+                              </div>
+                            </td>
                             <td style={{ color: 'var(--text-secondary)' }}>{emp.position}</td>
                             <td style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
                               {toPersianNums(gregorianToJalaliStr(emp.hire_date))}
                             </td>
-                            <td><span className="badge badge-warning">آرشیو</span></td>
+                            <td><StatusChip kind="archived">آرشیو</StatusChip></td>
                             <td>
                               <div className="flex items-center gap-1" style={{ justifyContent: 'center' }}>
                                 <button onClick={() => { employeesApi.unarchive(emp.id).then(load) }} className="btn btn-success btn-sm" style={{ padding: '4px 10px', minHeight: 28, fontSize: '0.7rem' }}><RotateCcw size={12} /> بازگردانی</button>

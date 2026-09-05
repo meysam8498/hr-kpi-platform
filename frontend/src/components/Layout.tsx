@@ -4,66 +4,16 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Bell, Star, UserCheck, Users, Target, TrendingUp,
-  Building2, IdCard, CalendarX, HeartPulse, BarChart3, SlidersHorizontal,
-  FileSpreadsheet, Settings2, CalendarClock, DatabaseBackup, ScrollText,
-  Sun, Moon, Menu, X, ChevronRight, ChevronLeft, Gauge, ChevronsRight, Sparkles,
-  type LucideIcon,
+  Sun, Moon, Menu, X, ChevronRight, ChevronLeft, Gauge, ChevronsRight, Sparkles, Search,
 } from 'lucide-react'
 import { useTheme } from '@/lib/theme-context'
 import { nowJalali, toEnglishNums, toPersianNums } from '@/lib/jalali'
 import DesignerCard from '@/components/DesignerCard'
 import NotificationBell from '@/components/NotificationBell'
+import CommandPalette from '@/components/CommandPalette'
+import { NAV_GROUPS } from '@/components/nav-config'
 
-/* ─── Navigation Groups (Hick's Law: Reduce complexity by grouping) ─── */
-interface NavItem { href: string; icon: LucideIcon; label: string; badge?: string }
-interface NavGroup { label: string; items: NavItem[] }
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: 'اصلی',
-    items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'داشبورد' },
-      { href: '/notifications', icon: Bell, label: 'اعلان‌ها' },
-    ],
-  },
-  {
-    label: 'عملیات',
-    items: [
-      { href: '/scoring', icon: Star, label: 'امتیازدهی' },
-      { href: '/self-eval', icon: UserCheck, label: 'خودارزیابی' },
-      { href: '/peer-reviews', icon: Users, label: 'ارزیابی ۳۶۰' },
-      { href: '/goals', icon: Target, label: 'اهداف' },
-      { href: '/pips', icon: TrendingUp, label: 'طرح بهبود' },
-    ],
-  },
-  {
-    label: 'مدیریت',
-    items: [
-      { href: '/teams', icon: Building2, label: 'تیم‌ها' },
-      { href: '/employees', icon: IdCard, label: 'کارمندان' },
-      { href: '/absences', icon: CalendarX, label: 'غیبت‌ها' },
-    ],
-  },
-  {
-    label: 'گزارش‌ها',
-    items: [
-      { href: '/hr', icon: HeartPulse, label: 'داشبورد منابع انسانی' },
-      { href: '/reports', icon: BarChart3, label: 'گزارش‌ها' },
-      { href: '/custom-reports', icon: SlidersHorizontal, label: 'گزارش سفارشی' },
-      { href: '/excel', icon: FileSpreadsheet, label: 'اکسل' },
-    ],
-  },
-  {
-    label: 'تنظیمات',
-    items: [
-      { href: '/admin/config', icon: Settings2, label: 'تنظیمات KPI' },
-      { href: '/admin/periods', icon: CalendarClock, label: 'دوره‌ها' },
-      { href: '/backup', icon: DatabaseBackup, label: 'پشتیبان‌گیری' },
-      { href: '/audit', icon: ScrollText, label: 'گزارش فعالیت' },
-    ],
-  },
-]
+/* ─── Navigation Groups — shared with CommandPalette (nav-config.tsx) ─── */
 
 const PERSIAN_DAYS = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه']
 const PERSIAN_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
@@ -116,6 +66,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [clock, setClock] = useState({ date: '', time: '', seconds: '', day: '' })
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [cmdkOpen, setCmdkOpen] = useState(false)
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     setMounted(true)
@@ -137,6 +89,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
+
+  // Global shortcuts: Ctrl+K palette, '/' quick search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setCmdkOpen(o => !o)
+      } else if (e.key === '/' && !cmdkOpen) {
+        const el = document.activeElement
+        const tag = el ? el.tagName.toLowerCase() : ''
+        if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+          e.preventDefault()
+          setCmdkOpen(true)
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [cmdkOpen])
 
   const sidebarWidth = isMobile ? 0 : collapsed ? 64 : 232
 
@@ -356,80 +327,157 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
+          {/* Quick Search Trigger (desktop) */}
+          {!collapsed && (
+            <button
+              onClick={() => setCmdkOpen(true)}
+              className="flex items-center gap-2 cursor-pointer"
+              style={{
+                margin: '0 12px 8px',
+                width: 'calc(100% - 24px)',
+                padding: '8px 12px',
+                borderRadius: 10,
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.09)',
+                color: 'var(--text-sidebar)',
+                fontFamily: 'inherit',
+                fontSize: '0.75rem',
+                justifyContent: 'space-between',
+                minHeight: 36,
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.09)'
+                e.currentTarget.style.color = '#cdd1e8'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                e.currentTarget.style.color = 'var(--text-sidebar)'
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <Search size={14} />
+                <span>جستجو…</span>
+              </span>
+              <span
+                style={{
+                  fontSize: '0.6rem', border: '1px solid rgba(255,255,255,0.14)',
+                  borderRadius: 5, padding: '1px 6px', color: 'var(--text-sidebar)',
+                  fontFamily: 'monospace',
+                }}
+              >
+                Ctrl K
+              </span>
+            </button>
+          )}
+
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto" style={{ padding: '10px 10px' }}>
-            {NAV_GROUPS.map((group, gi) => (
-              <div key={gi} style={{ marginBottom: gi < NAV_GROUPS.length - 1 ? 18 : 0 }}>
+            {NAV_GROUPS.map((group, gi) => {
+              const isCollapsed = collapsedGroups[group.label] ?? false
+              const hasActive = group.items.some(
+                it => pathname === it.href || pathname?.startsWith(it.href + '/')
+              )
+              return (
+              <div key={gi} style={{ marginBottom: gi < NAV_GROUPS.length - 1 ? 14 : 0 }}>
                 {!collapsed && (
-                  <div
+                  <button
+                    onClick={() =>
+                      setCollapsedGroups(s => ({ ...s, [group.label]: !isCollapsed }))
+                    }
+                    title={collapsed ? group.label : undefined}
                     style={{
-                      fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-sidebar)',
-                      letterSpacing: '0.06em', padding: '0 10px', marginBottom: 6,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%', background: 'transparent', border: 'none',
+                      cursor: 'pointer', padding: '0 10px', marginBottom: 6,
+                      fontFamily: 'inherit',
                     }}
                   >
-                    {group.label}
-                  </div>
-                )}
-                {group.items.map((item) => {
-                  const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-                  const Icon = item.icon
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      title={collapsed ? item.label : undefined}
+                    <span
                       style={{
-                        display: 'flex', alignItems: 'center',
-                        gap: 10,
-                        padding: collapsed ? '10px 0' : '9px 10px',
-                        borderRadius: 10,
-                        marginBottom: 3,
-                        background: isActive
-                          ? 'linear-gradient(135deg, rgba(91,106,191,0.28) 0%, rgba(139,109,215,0.22) 100%)'
-                          : 'transparent',
-                        color: isActive ? '#fff' : 'var(--text-sidebar)',
-                        textDecoration: 'none',
-                        transition: 'all 0.15s ease',
-                        justifyContent: collapsed ? 'center' : 'flex-start',
-                        position: 'relative',
-                        minHeight: 40,
-                        border: isActive ? '1px solid rgba(124,138,224,0.25)' : '1px solid transparent',
-                      }}
-                      onMouseEnter={e => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                          e.currentTarget.style.color = '#cdd1e8'
-                        }
-                      }}
-                      onMouseLeave={e => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = 'var(--text-sidebar)'
-                        }
+                        fontSize: '0.6rem', fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        color: hasActive ? '#a5b0f0' : 'var(--text-sidebar)',
                       }}
                     >
-                      {isActive && !collapsed && (
-                        <div
-                          style={{
-                            position: 'absolute', right: -10, top: '50%',
-                            transform: 'translateY(-50%)',
-                            width: 3, height: 20,
-                            borderRadius: '3px 0 0 3px',
-                            background: '#a5b0f0',
-                          }}
-                        />
+                      {group.label}
+                      {hasActive && (
+                        <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#a5b0f0' }} />
                       )}
-                      <Icon size={17} strokeWidth={isActive ? 2.2 : 1.9} style={{ flexShrink: 0 }} />
-                      {!collapsed && (
-                        <span style={{ fontSize: '0.78rem', fontWeight: isActive ? 600 : 400, whiteSpace: 'nowrap' }}>
-                          {item.label}
-                        </span>
-                      )}
-                    </Link>
-                  )
-                })}
+                    </span>
+                    <ChevronLeft
+                      size={12}
+                      className="nav-group-chevron"
+                      style={{
+                        transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                        color: 'var(--text-sidebar)',
+                      }}
+                    />
+                  </button>
+                )}
+                {!isCollapsed &&
+                  group.items.map((item) => {
+                    const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+                    const Icon = item.icon
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={collapsed ? item.label : undefined}
+                        style={{
+                          display: 'flex', alignItems: 'center',
+                          gap: 10,
+                          padding: collapsed ? '10px 0' : '9px 10px',
+                          borderRadius: 10,
+                          marginBottom: 3,
+                          background: isActive
+                            ? 'linear-gradient(135deg, rgba(91,106,191,0.28) 0%, rgba(139,109,215,0.22) 100%)'
+                            : 'transparent',
+                          color: isActive ? '#fff' : 'var(--text-sidebar)',
+                          textDecoration: 'none',
+                          transition: 'all 0.15s ease',
+                          justifyContent: collapsed ? 'center' : 'flex-start',
+                          position: 'relative',
+                          minHeight: 40,
+                          border: isActive ? '1px solid rgba(124,138,224,0.25)' : '1px solid transparent',
+                        }}
+                        onMouseEnter={e => {
+                          if (!isActive) {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                            e.currentTarget.style.color = '#cdd1e8'
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (!isActive) {
+                            e.currentTarget.style.background = 'transparent'
+                            e.currentTarget.style.color = 'var(--text-sidebar)'
+                          }
+                        }}
+                      >
+                        {isActive && !collapsed && (
+                          <div
+                            style={{
+                              position: 'absolute', right: -10, top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: 3, height: 20,
+                              borderRadius: '3px 0 0 3px',
+                              background: '#a5b0f0',
+                            }}
+                          />
+                        )}
+                        <Icon size={17} strokeWidth={isActive ? 2.2 : 1.9} style={{ flexShrink: 0 }} />
+                        {!collapsed && (
+                          <span style={{ fontSize: '0.78rem', fontWeight: isActive ? 600 : 400, whiteSpace: 'nowrap' }}>
+                            {item.label}
+                          </span>
+                        )}
+                      </Link>
+                    )
+                  })}
               </div>
-            ))}
+              )
+            })}
           </nav>
 
           {/* Footer — Bell + Theme Toggle + Collapse */}
@@ -544,8 +592,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           zIndex: 1,
         }}
       >
-        {children}
+        <div className="route-fade" key={pathname}>
+          {children}
+        </div>
       </main>
+
+      {/* Command Palette (Ctrl+K) */}
+      <CommandPalette open={cmdkOpen} onClose={() => setCmdkOpen(false)} />
     </div>
   )
 }

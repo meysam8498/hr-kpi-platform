@@ -2,7 +2,7 @@
  * API Client — no auth, direct to FastAPI backend.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface FetchOptions extends RequestInit {
   json?: unknown
@@ -157,8 +157,8 @@ export const employeesApi = {
   archive: (id: number) => request<Employee>(`/api/employees/${id}/archive`, { method: 'PUT' }),
   unarchive: (id: number) => request<Employee>(`/api/employees/${id}/unarchive`, { method: 'PUT' }),
   delete: (id: number) => request(`/api/employees/${id}`, { method: 'DELETE' }),
-  importJson: (items: { employee_code: string; first_name: string; last_name: string; position: string; team_id: number; hire_date: string; phone?: string }[]) =>
-    request<{ created: number; skipped: { row: number; employee_code: string; reason: string }[]; errors: { row: number; reason: string }[] }>('/api/employees/import-json', { method: 'POST', json: items }),
+  importJson: (items: { employee_code: string; first_name: string; last_name: string; position: string; team_name: string; hire_date: string; phone?: string }[]) =>
+    request<{ created: number; skipped: { row: number; employee_code: string; reason: string }[]; errors: { row: number; reason: string }[] }>('/api/employees/import-json-by-name', { method: 'POST', json: items }),
   importExcel: async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)

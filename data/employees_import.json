@@ -1,0 +1,497 @@
+[
+  {
+    "employee_code": "1002",
+    "first_name": "پاشا",
+    "last_name": "بابایی مجید آباد",
+    "position": "سرپرست  خدمات پس از فروش",
+    "team_name": "زیرساخت و شبکه",
+    "hire_date": "1395/06/01",
+    "phone": "09354363073"
+  },
+  {
+    "employee_code": "1005",
+    "first_name": "سپیده",
+    "last_name": "حاجی نوروزی",
+    "position": "کارشناس ارشد فروش",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1397/02/01",
+    "phone": "09379750607"
+  },
+  {
+    "employee_code": "1075",
+    "first_name": "مهیار",
+    "last_name": "ذوالفقاری شهریور",
+    "position": "سرپرست  نرم‌افزار و امنیت اطلاعات",
+    "team_name": "نرم‌افزار",
+    "hire_date": "1397/04/01",
+    "phone": "09124579098"
+  },
+  {
+    "employee_code": "1001",
+    "first_name": "حسام",
+    "last_name": "اصغری تیر آبادی",
+    "position": "کارشناس نرم‌افزار و امنیت اطلاعات",
+    "team_name": "نرم‌افزار",
+    "hire_date": "1397/07/01",
+    "phone": "09362243840"
+  },
+  {
+    "employee_code": "1041",
+    "first_name": "لطیف",
+    "last_name": "صمدیان کلی",
+    "position": "راننده",
+    "team_name": "منابع انسانی",
+    "hire_date": "1398/10/03",
+    "phone": "09126213470"
+  },
+  {
+    "employee_code": "1012",
+    "first_name": "روناک",
+    "last_name": "کاظمی",
+    "position": "کارشناس ارشد فروش",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1395/12/01",
+    "phone": "09128577754"
+  },
+  {
+    "employee_code": "1014",
+    "first_name": "علیرضا",
+    "last_name": "هوشمند مفرد",
+    "position": "سرپرست شبکه و امنیت شبکه",
+    "team_name": "زیرساخت و شبکه",
+    "hire_date": "1399/01/01",
+    "phone": "09339056349"
+  },
+  {
+    "employee_code": "1007",
+    "first_name": "امیرحسین",
+    "last_name": "رحیمی صدوده",
+    "position": "کارشناس شبکه و امنیت شبکه",
+    "team_name": "زیرساخت و شبکه",
+    "hire_date": "1398/10/01",
+    "phone": "09197709980"
+  },
+  {
+    "employee_code": "1025",
+    "first_name": "حسین",
+    "last_name": "معصومی بناب",
+    "position": "کارمند خدمات اداری",
+    "team_name": "منابع انسانی",
+    "hire_date": "1400/01/17",
+    "phone": "09194753458"
+  },
+  {
+    "employee_code": "1030",
+    "first_name": "رامتین",
+    "last_name": "امیری زاده",
+    "position": "سرپرست مناقصات و مزایده ها",
+    "team_name": "مناقصات",
+    "hire_date": "1401/10/01",
+    "phone": "09126702942"
+  },
+  {
+    "employee_code": "1045",
+    "first_name": "محمدرضا",
+    "last_name": "شبانی",
+    "position": "کارشناس نرم‌افزار و امنیت اطلاعات",
+    "team_name": "نرم‌افزار",
+    "hire_date": "1401/10/10",
+    "phone": "09210229248"
+  },
+  {
+    "employee_code": "907",
+    "first_name": "پگاه",
+    "last_name": "شهوندی",
+    "position": "مدیر فروش",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1402/01/01",
+    "phone": "09939513308"
+  },
+  {
+    "employee_code": "1091",
+    "first_name": "هادی",
+    "last_name": "رشادت زاده",
+    "position": "کارشناس فنی",
+    "team_name": "زیرساخت و شبکه",
+    "hire_date": "1402/02/01",
+    "phone": "09123378933"
+  },
+  {
+    "employee_code": "1102",
+    "first_name": "شبنم",
+    "last_name": "قویدست قاضیانی",
+    "position": "کارشناس ارشد گرافیک",
+    "team_name": "مارکتینگ",
+    "hire_date": "1402/06/01",
+    "phone": "09123962911"
+  },
+  {
+    "employee_code": "1115",
+    "first_name": "علی",
+    "last_name": "دقیق شعاعی",
+    "position": "سرپرست انبار",
+    "team_name": "انبار و دبیرخانه",
+    "hire_date": "1402/10/16",
+    "phone": "09121439785"
+  },
+  {
+    "employee_code": "1119",
+    "first_name": "ندا",
+    "last_name": "افتخاری",
+    "position": "مسئول دبیرخانه",
+    "team_name": "انبار و دبیرخانه",
+    "hire_date": "1402/11/01",
+    "phone": "09123878357- 09306996924"
+  },
+  {
+    "employee_code": "1096",
+    "first_name": "سارا",
+    "last_name": "منصوریان",
+    "position": "کارشناس اداری و منابع انسانی",
+    "team_name": "منابع انسانی",
+    "hire_date": "1403/03/01",
+    "phone": "09194186979"
+  },
+  {
+    "employee_code": "1129",
+    "first_name": "مهدی",
+    "last_name": "مهرانوری",
+    "position": "کارشناس شبکه",
+    "team_name": "زیرساخت و شبکه",
+    "hire_date": "1403/03/01",
+    "phone": "09125044083"
+  },
+  {
+    "employee_code": "1132",
+    "first_name": "نرگس",
+    "last_name": "گراوند",
+    "position": "کارمند مالی",
+    "team_name": "مالی",
+    "hire_date": "1403/04/17",
+    "phone": "09035605847"
+  },
+  {
+    "employee_code": "1142",
+    "first_name": "علی",
+    "last_name": "استقامت کنزق",
+    "position": "تحصیلدار",
+    "team_name": "منابع انسانی",
+    "hire_date": "1403/08/13",
+    "phone": "09129152782"
+  },
+  {
+    "employee_code": "1147",
+    "first_name": "صبا",
+    "last_name": "برزگار",
+    "position": "کارشناس نرم‌افزار و امنیت اطلاعات",
+    "team_name": "نرم‌افزار",
+    "hire_date": "1403/10/22",
+    "phone": "09129532630"
+  },
+  {
+    "employee_code": "1148",
+    "first_name": "علی",
+    "last_name": "نعمتی آق قلعه",
+    "position": "کارمند نرم‌افزار و امنیت اطلاعات",
+    "team_name": "نرم‌افزار",
+    "hire_date": "1403/11/01",
+    "phone": "09330480709"
+  },
+  {
+    "employee_code": "1151",
+    "first_name": "مریم",
+    "last_name": "سلطانی",
+    "position": "کارشناس فروش سخت افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1404/04/16",
+    "phone": "09213234088"
+  },
+  {
+    "employee_code": "1152",
+    "first_name": "امیرشایان",
+    "last_name": "رزین",
+    "position": "کارشناس CRM",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1404/05/06",
+    "phone": "09120472989"
+  },
+  {
+    "employee_code": "1154",
+    "first_name": "سهند",
+    "last_name": "مددی ورزقانی",
+    "position": "سرپرست مارکتینگ",
+    "team_name": "مارکتینگ",
+    "hire_date": "1404/05/21",
+    "phone": "09128932078"
+  },
+  {
+    "employee_code": "1090",
+    "first_name": "مریم",
+    "last_name": "فلاح منش",
+    "position": "سرپرست بازرگانی داخلی",
+    "team_name": "بازرگانی",
+    "hire_date": "1404/06/01",
+    "phone": "09123484200"
+  },
+  {
+    "employee_code": "1157",
+    "first_name": "حکیمه",
+    "last_name": "فرجی",
+    "position": "کارشناس فروش سخت افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1404/07/01",
+    "phone": "09902328170"
+  },
+  {
+    "employee_code": "1158",
+    "first_name": "صغری",
+    "last_name": "میرزائی",
+    "position": "کارمند خدمات اداری",
+    "team_name": "منابع انسانی",
+    "hire_date": "1404/07/01",
+    "phone": "09154224691"
+  },
+  {
+    "employee_code": "1159",
+    "first_name": "خشایار",
+    "last_name": "احدی ایرانی",
+    "position": "کارشناس فروش نرم افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1404/07/05",
+    "phone": "09361772782"
+  },
+  {
+    "employee_code": "1161",
+    "first_name": "سیداسدالله",
+    "last_name": "طباطبایی",
+    "position": "مشاور مالی",
+    "team_name": "مالی",
+    "hire_date": "1404/06/30",
+    "phone": "-"
+  },
+  {
+    "employee_code": "1164",
+    "first_name": "پروین",
+    "last_name": "زندیه",
+    "position": "سرپرست",
+    "team_name": "مالی",
+    "hire_date": "1404/08/10",
+    "phone": "09120762593"
+  },
+  {
+    "employee_code": "1162",
+    "first_name": "ارشیا",
+    "last_name": "رستمی",
+    "position": "کارشناس فروش نرم افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1404/09/01",
+    "phone": "۰۹۳۸۴۰۴۹۷۹۴"
+  },
+  {
+    "employee_code": "1165",
+    "first_name": "متین",
+    "last_name": "نجف زاده",
+    "position": "کارمند نرم‌افزار و امنیت اطلاعات",
+    "team_name": "نرم‌افزار",
+    "hire_date": "1404/10/01",
+    "phone": "09198799022"
+  },
+  {
+    "employee_code": "1166",
+    "first_name": "داریوش",
+    "last_name": "علیزاده",
+    "position": "کارشناس نرم‌افزار و امنیت اطلاعات",
+    "team_name": "نرم‌افزار",
+    "hire_date": "1404/10/23",
+    "phone": "09127198705"
+  },
+  {
+    "employee_code": "1169",
+    "first_name": "مریم السادات",
+    "last_name": "مظلوم طبائی زواره",
+    "position": "کارشناس فروش نرم افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1404/11/01",
+    "phone": "09010332730"
+  },
+  {
+    "employee_code": "1170",
+    "first_name": "امیرسالار",
+    "last_name": "مشیری",
+    "position": "کارشناس مارکتینگ",
+    "team_name": "مارکتینگ",
+    "hire_date": "1404/11/04",
+    "phone": "09126990878"
+  },
+  {
+    "employee_code": "1171",
+    "first_name": "نازنین",
+    "last_name": "کاویانی مرام",
+    "position": "دستیار ارشد مدیر فروش",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1404/12/04",
+    "phone": "09180160107"
+  },
+  {
+    "employee_code": "1173",
+    "first_name": "پرستو",
+    "last_name": "رحمت اللهی",
+    "position": "مدیر مالی",
+    "team_name": "مالی",
+    "hire_date": "1405/02/19",
+    "phone": "09123520425"
+  },
+  {
+    "employee_code": "1174",
+    "first_name": "فاطمه",
+    "last_name": "روحانیان",
+    "position": "کارشناس مالی",
+    "team_name": "مالی",
+    "hire_date": "1405/02/19",
+    "phone": "09109051979"
+  },
+  {
+    "employee_code": "1175",
+    "first_name": "آرش",
+    "last_name": "محمودی نژادتیل",
+    "position": "کارشناس فروش نرم افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1405/02/19",
+    "phone": "09120697037"
+  },
+  {
+    "employee_code": "1176",
+    "first_name": "کاظم",
+    "last_name": "بازیار",
+    "position": "کارشناس بازرگانی خارجی",
+    "team_name": "بازرگانی",
+    "hire_date": "1405/02/19",
+    "phone": "09370238034"
+  },
+  {
+    "employee_code": "1177",
+    "first_name": "فرزاد",
+    "last_name": "قانونی",
+    "position": "کارشناس فروش",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1405/02/12",
+    "phone": "09940655478-09338722701"
+  },
+  {
+    "employee_code": "1179",
+    "first_name": "نسیم",
+    "last_name": "لشنی",
+    "position": "کارشناس فروش سخت افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1405/02/19",
+    "phone": "09306241977"
+  },
+  {
+    "employee_code": "1180",
+    "first_name": "مریم",
+    "last_name": "فیضی زاده",
+    "position": "کارشناس فروش",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1405/03/10",
+    "phone": "09149674701"
+  },
+  {
+    "employee_code": "1181",
+    "first_name": "محمود",
+    "last_name": "بیات",
+    "position": "کارشناس وصول مطالبات",
+    "team_name": "مالی",
+    "hire_date": "1405/03/17",
+    "phone": "09912132809"
+  },
+  {
+    "employee_code": "1182",
+    "first_name": "میثم",
+    "last_name": "ایجادی",
+    "position": "کارشناس ارشد زیرساخت مجازی و ذخیره سازی",
+    "team_name": "زیرساخت و شبکه",
+    "hire_date": "1405/03/23",
+    "phone": "09022964006-09102614185"
+  },
+  {
+    "employee_code": "1183",
+    "first_name": "شنو",
+    "last_name": "بی نیاز",
+    "position": "کارشناس فروش سخت افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1405/03/23",
+    "phone": "09188707655"
+  },
+  {
+    "employee_code": "1184",
+    "first_name": "مریم",
+    "last_name": "دمیرچی",
+    "position": "کارشناس مناقصات",
+    "team_name": "مناقصات",
+    "hire_date": "1405/04/01",
+    "phone": "09918020323"
+  },
+  {
+    "employee_code": "1125",
+    "first_name": "محمدرضا",
+    "last_name": "آسترباف",
+    "position": "مدیر فنی",
+    "team_name": "زیرساخت و شبکه",
+    "hire_date": "1405/04/01",
+    "phone": "09394868212"
+  },
+  {
+    "employee_code": "1185",
+    "first_name": "الهه",
+    "last_name": "خزاعی",
+    "position": "کارشناس فروش نرم افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1405/04/20",
+    "phone": "09111005799"
+  },
+  {
+    "employee_code": "1186",
+    "first_name": "مهدی",
+    "last_name": "گرامی",
+    "position": "—",
+    "team_name": "بازرگانی",
+    "hire_date": "1405/01/01",
+    "phone": "None"
+  },
+  {
+    "employee_code": "1187",
+    "first_name": "بنفشه",
+    "last_name": "احمدی",
+    "position": "کارشناس فروش نرم افزار",
+    "team_name": "فروش و بازرگانی",
+    "hire_date": "1405/05/01",
+    "phone": "09935015641"
+  },
+  {
+    "employee_code": "1188",
+    "first_name": "سارا",
+    "last_name": "معزی",
+    "position": "مدیر بازرگانی",
+    "team_name": "بازرگانی",
+    "hire_date": "1405/04/24",
+    "phone": "09121487607"
+  },
+  {
+    "employee_code": "1189",
+    "first_name": "رضا",
+    "last_name": "ابراهیمی",
+    "position": "تحصیلدار",
+    "team_name": "منابع انسانی",
+    "hire_date": "1405/05/05",
+    "phone": "09352529287"
+  },
+  {
+    "employee_code": "1190",
+    "first_name": "پدرام",
+    "last_name": "سلیمی",
+    "position": "سرپرست واحد مالیاتی",
+    "team_name": "مالی",
+    "hire_date": "1405/05/24",
+    "phone": "09102003946"
+  }
+]

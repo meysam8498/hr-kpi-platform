@@ -442,6 +442,18 @@ class BulkImportItem(BaseModel):
     hire_date: date
     phone: Optional[str] = None
 
+
+class BulkImportItemByName(BaseModel):
+    """Bulk import item — team is referenced by *name* and auto-created if missing."""
+    employee_code: str = Field(min_length=1, max_length=50)
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    position: str = Field(min_length=1, max_length=150)
+    team_name: str = Field(min_length=1, max_length=100)
+    hire_date: str = Field(min_length=4, max_length=20,
+                           description="Jalali yyyy/mm/dd or Gregorian yyyy-mm-dd")
+    phone: Optional[str] = None
+
 class BulkImportResult(BaseModel):
     created: int
     skipped: list[dict]

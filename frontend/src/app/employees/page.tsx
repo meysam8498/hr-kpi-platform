@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { IdCard, Plus, Upload, Pencil, ArrowLeftRight, Archive, Trash2, RotateCcw, UserRound, Package } from 'lucide-react'
 import AppLayout from '@/components/Layout'
-import { employeesApi, teamsApi } from '@/lib/api'
+import { employeesApi, teamsApi, API_BASE } from '@/lib/api'
 import type { Employee, Team } from '@/lib/api'
 import { gregorianToJalaliStr, jalaliToGregorianStr, toPersianNums } from '@/lib/jalali'
 import JalaliDatePicker from '@/components/JalaliDatePicker'
@@ -457,7 +457,7 @@ export default function EmployeesPage() {
                   روش ۱ — فایل اکسل
                 </label>
                 <p style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginBottom: 8 }}>
-                  ستون‌ها: کد پرسنلی | نام | نام خانوادگی | سمت | تیم | تاریخ استخدام (yyyy-mm-dd) | تلفن (اختیاری)
+                  ستون‌ها: شماره پرسنلی | نام | نام خانوادگی | واحد (تیم) | سمت سازمانی | تاریخ استخدام (شمسی ۱۴۰۴/۰۱/۱۵) | شماره همراه — تیم‌های جدید خودکار ساخته می‌شوند
                 </p>
                 <input
                   type="file"
@@ -468,6 +468,14 @@ export default function EmployeesPage() {
                   }}
                   style={{ padding: '10px', border: '1px dashed var(--border-primary)', borderRadius: 10, background: 'var(--bg-tertiary)', width: '100%' }}
                 />
+                <a
+                  href={`${API_BASE}/api/employees/import-template`}
+                  download
+                  className="btn btn-ghost"
+                  style={{ marginTop: 8, width: '100%', justifyContent: 'center', fontSize: '0.7rem' }}
+                >
+                  ⬇ دریافت فایل نمونه اکسل
+                </a>
               </div>
 
               {/* JSON paste */}
@@ -479,7 +487,7 @@ export default function EmployeesPage() {
                   rows={5}
                   value={jsonText}
                   onChange={e => setJsonText(e.target.value)}
-                  placeholder='[{"employee_code": "EMP010", "first_name": "علی", "last_name": "محمدی", "position": "کارشناس", "team_id": 1, "hire_date": "2025-01-01", "phone": "0912..."}]'
+                  placeholder='[{"employee_code": "1002", "first_name": "پاشا", "last_name": "بابایی", "position": "سرپرست فروش", "team_name": "فروش و بازرگانی", "hire_date": "1395/06/01", "phone": "0935..."}]'
                 />
                 <button onClick={handleImportJson} disabled={importBusy || !jsonText.trim()} className="btn btn-primary" style={{ marginTop: 8, width: '100%', justifyContent: 'center' }}>
                   {importBusy ? 'در حال وارد کردن…' : 'وارد کردن JSON'}

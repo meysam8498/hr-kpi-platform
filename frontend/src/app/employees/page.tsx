@@ -7,7 +7,7 @@ import { employeesApi, teamsApi, API_BASE } from '@/lib/api'
 import type { Employee, Team } from '@/lib/api'
 import { gregorianToJalaliStr, jalaliToGregorianStr, toPersianNums } from '@/lib/jalali'
 import JalaliDatePicker from '@/components/JalaliDatePicker'
-import { Avatar, EmptyState, TableSkeleton, BulkBar, StatusChip } from '@/components/ui'
+import { Avatar, EmptyState, TableSkeleton, BulkBar, StatusChip, HelpHint } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 
 type ViewMode = 'active' | 'archived'
@@ -454,7 +454,7 @@ export default function EmployeesPage() {
               {/* Excel upload */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>
-                  روش ۱ — فایل اکسل
+                  روش ۱ — فایل اکسل <HelpHint text="اگر شماره پرسنلی تکراری باشد، ردیف نادیده گرفته می‌شود؛ پس آپلود مجدد فایل امن است. تاریخ را شمسی وارد کنید مثل ۱۴۰۴/۰۱/۱۵." />
                 </label>
                 <p style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginBottom: 8 }}>
                   ستون‌ها: شماره پرسنلی | نام | نام خانوادگی | واحد (تیم) | سمت سازمانی | تاریخ استخدام (شمسی ۱۴۰۴/۰۱/۱۵) | شماره همراه — تیم‌های جدید خودکار ساخته می‌شوند

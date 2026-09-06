@@ -424,3 +424,26 @@ export function BulkBar({
     </div>
   )
 }
+
+/* ─── HelpHint — آیکون «؟» با توضیح هنگام هاور، برای کنترل‌های حساس ─── */
+export function HelpHint({ text }: { text: string }) {
+  return (
+    <span
+      tabIndex={0}
+      role="note"
+      aria-label={text}
+      title={text}
+      style={{
+        position: 'relative', display: 'inline-flex',
+        width: 15, height: 15, borderRadius: '50%',
+        border: '1px solid var(--accent-primary)',
+        color: 'var(--accent-primary)',
+        fontSize: '0.6rem', fontWeight: 700,
+        alignItems: 'center', justifyContent: 'center',
+        cursor: 'help', flexShrink: 0, userSelect: 'none',
+      }}
+    >
+      ؟
+    </span>
+  )
+}

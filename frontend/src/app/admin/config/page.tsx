@@ -5,6 +5,7 @@ import { Settings2, ClipboardList, Dna, Scale, Trash2, Plus, Save } from 'lucide
 import AppLayout from '@/components/Layout'
 import { teamsApi, kpiApi } from '@/lib/api'
 import type { Team, KPICriterion, TeamKPIConfig } from '@/lib/api'
+import { HelpHint } from '@/components/ui'
 
 export default function KPIConfigPage() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -186,7 +187,7 @@ export default function KPIConfigPage() {
               </select>
             </div>
             <div className="w-24">
-              <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>وزن %</label>
+              <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>وزن % <HelpHint text="اهمیت نسبی این معیار نسبت به بقیه. بعد از ذخیره، همه وزن‌ها خودکار نرمال می‌شوند و نیازی به جمع ۱۰۰ نیست." /></label>
               <input type="number" className="w-full p-2.5 text-sm rounded-xl" value={addWeight} onChange={e => setAddWeight(Number(e.target.value))} min={0} max={100} />
             </div>
             <button onClick={addToTeam} disabled={!addCritId} className="premium-btn btn-success">افزودن</button>

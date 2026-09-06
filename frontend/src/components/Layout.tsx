@@ -12,6 +12,7 @@ import DesignerCard from '@/components/DesignerCard'
 import NotificationBell from '@/components/NotificationBell'
 import CommandPalette from '@/components/CommandPalette'
 import { NAV_GROUPS } from '@/components/nav-config'
+import HelpStrip from '@/components/HelpStrip'
 
 /* ─── Navigation Groups — shared with CommandPalette (nav-config.tsx) ─── */
 
@@ -593,6 +594,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }}
       >
         <div className="route-fade" key={pathname}>
+          <HelpStrip />
           {children}
         </div>
       </main>

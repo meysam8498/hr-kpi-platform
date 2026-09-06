@@ -33,6 +33,8 @@ export default function PeriodsPage() {
   const [editPeriod, setEditPeriod] = useState<ReportingPeriod | null>(null)
   const [editName, setEditName] = useState('')
   const [editType, setEditType] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editEndDate, setEditEndDate] = useState('')
 
   const load = () => {
     Promise.all([kpiApi.listPeriods(), teamsApi.list()]).then(([p, t]) => {
@@ -81,17 +83,31 @@ export default function PeriodsPage() {
     setEditPeriod(period)
     setEditName(period.name)
     setEditType(period.period_type)
+    // JalaliDatePicker works with Jalali yyyy/mm/dd strings
+    setEditStartDate(gregorianToJalaliStr(period.start_date))
+    setEditEndDate(gregorianToJalaliStr(period.end_date))
   }
 
   const saveEditPeriod = async () => {
     if (!editPeriod) return
     try {
-      await fetch(`http://localhost:8000/api/kpi/periods/${editPeriod.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, period_type: editType }),
+      await kpiApi.updatePeriod(editPeriod.id, {
+        name: editName,
+        period_type: editType,
+        start_date: editStartDate ? jalaliToGregorianStr(editStartDate) : undefined,
+        end_date: editEndDate ? jalaliToGregorianStr(editEndDate) : undefined,
       })
       setEditPeriod(null)
+      load()
+      if (selectedPeriod?.id === editPeriod.id) setSelectedPeriod(null)
+    } catch {}
+  }
+
+  const deletePeriod = async (period: ReportingPeriod) => {
+    if (!confirm(`دوره «${period.name}» و تمام نمرات، اهداف و ارزیابی‌های آن برای همیشه حذف شود؟\nاین عمل قابل بازگشت نیست.`)) return
+    try {
+      await kpiApi.deletePeriod(period.id)
+      if (selectedPeriod?.id === period.id) { setSelectedPeriod(null); setPeriodReport(null) }
       load()
     } catch {}
   }
@@ -200,6 +216,14 @@ export default function PeriodsPage() {
                   <option value="semi_annual">شش‌ماهه</option>
                   <option value="annual">سالانه</option>
                 </select>
+                <div>
+                  <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>تاریخ شروع</label>
+                  <JalaliDatePicker value={editStartDate} onChange={setEditStartDate} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>تاریخ پایان</label>
+                  <JalaliDatePicker value={editEndDate} onChange={setEditEndDate} />
+                </div>
               </div>
               <div className="flex gap-3 mt-5">
                 <button onClick={saveEditPeriod} className="premium-btn btn-primary flex-1 justify-center">ذخیره</button>
@@ -262,6 +286,9 @@ export default function PeriodsPage() {
                                 className="premium-btn btn-ghost text-xs py-1 px-2 flex items-center gap-1"
                                 style={{ color: 'var(--accent-success)' }}><Play size={12} /> فعال</button>
                             )}
+                            <button onClick={() => deletePeriod(p)}
+                              className="premium-btn btn-ghost text-xs py-1 px-2" title="حذف دوره"
+                              style={{ color: 'var(--accent-danger)' }}><Trash2 size={13} /></button>
                           </div>
                         </td>
                       </tr>

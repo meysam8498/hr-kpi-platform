@@ -256,6 +256,34 @@ def update_period(period_id: int, request: ReportingPeriodUpdate, db: Session = 
     return period
 
 
+@router.delete("/periods/{period_id}")
+def delete_period(period_id: int, db: Session = Depends(get_db)):
+    """Delete a period and everything attached to it (scores, results, goals,
+    peer reviews, self-evaluations, PIPs). Intended for removing test periods."""
+    from ..models import KPIEntry, KPIResult, Goal, PeerReview, SelfEvaluation
+
+    period = db.query(ReportingPeriod).filter(ReportingPeriod.id == period_id).first()
+    if not period:
+        raise HTTPException(status_code=404, detail="دوره یافت نشد")
+
+    was_active = period.is_active
+    name = period.name
+
+    # Clear dependent rows first (SQLite lacks enforced FK cascade here).
+    # PIP rows are period-independent (date-range based), so they survive.
+    db.query(KPIEntry).filter(KPIEntry.period_id == period_id).delete()
+    db.query(KPIResult).filter(KPIResult.period_id == period_id).delete()
+    db.query(Goal).filter(Goal.period_id == period_id).delete()
+    db.query(PeerReview).filter(PeerReview.period_id == period_id).delete()
+    db.query(SelfEvaluation).filter(SelfEvaluation.period_id == period_id).delete()
+    db.delete(period)
+    db.commit()
+
+    log_audit(db, "config", "period", period_id, f"حذف دوره «{name}» به همراه تمام داده‌های آن")
+    db.commit()
+    return {"message": f"دوره «{name}» و تمام داده‌های وابسته به آن حذف شد", "was_active": was_active}
+
+
 # ──────────────────────────────────────────────
 # KPI Scoring (manual)
 # ──────────────────────────────────────────────

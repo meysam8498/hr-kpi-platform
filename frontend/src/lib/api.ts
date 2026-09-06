@@ -190,6 +190,10 @@ export const kpiApi = {
   listPeriods: () => request<ReportingPeriod[]>('/api/kpi/periods'),
   createPeriod: (data: { name: string; period_type: string; start_date: string; end_date: string }) =>
     request<ReportingPeriod>('/api/kpi/periods', { method: 'POST', json: data }),
+  updatePeriod: (id: number, data: { name?: string; period_type?: string; start_date?: string; end_date?: string; is_active?: boolean }) =>
+    request<ReportingPeriod>(`/api/kpi/periods/${id}`, { method: 'PUT', json: data }),
+  deletePeriod: (id: number) =>
+    request<{ message: string; was_active: boolean }>(`/api/kpi/periods/${id}`, { method: 'DELETE' }),
 
   batchScore: (employeeId: number, periodId: number, scores: { criterion_id: number; score: number; comment?: string }[]) =>
     request(`/api/kpi/entries/batch?employee_id=${employeeId}&period_id=${periodId}`, { method: 'POST', json: scores }),

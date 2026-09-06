@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from ..database import get_db
-from ..models import Notification, ReportingPeriod
+from ..models import Notification, ReportingPeriod, Team, Employee, KPIEntry
 from ..schemas import NotificationCreate, NotificationOut
 
 router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
@@ -64,6 +64,50 @@ def delete_notification(notif_id: int, db: Session = Depends(get_db)):
     db.delete(notif)
     db.commit()
     return {"message": "حذف شد"}
+
+
+@router.post("/remind-managers/{period_id}")
+def remind_managers(period_id: int, db: Session = Depends(get_db)):
+    """Create a reminder listing teams whose members have no scores in the period.
+
+    Single-summary design (keeps the panel simple): one notification naming
+    every unscored team, instead of one notification per team.
+    """
+    period = db.query(ReportingPeriod).filter(ReportingPeriod.id == period_id).first()
+    if not period:
+        raise HTTPException(status_code=404, detail="دوره یافت نشد")
+
+    # Teams that are fully unscored in this period
+    teams = db.query(Team).all()
+    missing: list[str] = []
+    for team in teams:
+        members = db.query(Employee).filter(
+            Employee.team_id == team.id,
+            Employee.is_archived == False,
+        ).all()
+        if not members:
+            continue
+        member_ids = [m.id for m in members]
+        scored = db.query(KPIEntry.id).filter(
+            KPIEntry.period_id == period_id,
+            KPIEntry.employee_id.in_(member_ids),
+        ).first()
+        if not scored:
+            missing.append(team.name)
+
+    if not missing:
+        return {"created": 0, "missing": [], "message": "همه تیم‌ها امتیازدهی شده‌اند — نیازی به یادآوری نیست"}
+
+    names = "، ".join(missing)
+    notif = Notification(
+        title=f"📝 یادآوری امتیازدهی: دوره «{period.name}»",
+        message=f"تیم‌های زیر هنوز در این دوره امتیازی ثبت نکرده‌اند: {names}",
+        type="deadline",
+        link="/scoring",
+    )
+    db.add(notif)
+    db.commit()
+    return {"created": 1, "missing": missing, "message": "یادآوری برای مدیران ثبت شد"}
 
 
 @router.post("/check-deadlines")

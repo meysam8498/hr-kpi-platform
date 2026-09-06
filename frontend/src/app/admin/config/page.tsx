@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Settings2, ClipboardList, Dna, Scale, Trash2, Plus, Save } from 'lucide-react'
+import { Settings2, ClipboardList, Dna, Scale, Trash2, Plus, Save, Calculator } from 'lucide-react'
 import AppLayout from '@/components/Layout'
 import { teamsApi, kpiApi } from '@/lib/api'
 import type { Team, KPICriterion, TeamKPIConfig } from '@/lib/api'
 import { HelpHint } from '@/components/ui'
+import { toPersianNums } from '@/lib/jalali'
 
 export default function KPIConfigPage() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -71,6 +72,19 @@ export default function KPIConfigPage() {
   }
 
   const totalWeight = teamConfigs.reduce((sum, c) => sum + c.weight, 0)
+
+  // Inline live example of the weighted-average formula for the selected team.
+  // Sample scores (80/60) show how weights turn raw scores into a final number.
+  const sampleScores = [80, 60]
+  const previewRows = teamConfigs.map((tc, i) => ({
+    name: tc.criterion_name,
+    weight: tc.weight,
+    score: sampleScores[i % 2],
+  }))
+  const previewWeight = previewRows.reduce((s, r) => s + r.weight, 0)
+  const previewFinal = previewWeight > 0
+    ? Math.round(previewRows.reduce((s, r) => s + r.score * r.weight, 0) / previewWeight * 10) / 10
+    : 0
 
   if (loading) return <AppLayout><div className="flex items-center justify-center py-32"><div className="inline-block w-10 h-10 border-3 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--border-primary)', borderTopColor: 'transparent' }} /></div></AppLayout>
 
@@ -207,6 +221,27 @@ export default function KPIConfigPage() {
                 style={{ width: `${Math.min(totalWeight, 100)}%`, background: totalWeight === 100 ? 'var(--accent-success)' : totalWeight > 100 ? 'var(--accent-danger)' : 'var(--accent-warning)' }} />
             </div>
           </div>
+
+          {/* Inline calculation preview — makes the formula visible without a new page */}
+          {teamConfigs.length > 0 && (
+            <div className="p-4 rounded-xl mb-5" style={{ background: 'var(--accent-primary-subtle)', border: '1px dashed var(--accent-primary)' }}>
+              <div className="flex items-center gap-2 text-sm font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                <Calculator size={15} /> نمونه محاسبه — نمره فرضی برای تیم انتخابی
+              </div>
+              <div className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>
+                نمره نهایی = مجموع (نمره × وزن) ÷ مجموع وزن‌ها. برای درک وزن‌دهی، نمره‌های فرضی ۸۰ و ۶۰ در نظر گرفته شده:
+              </div>
+              <div className="flex items-center gap-2 flex-wrap text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {previewRows.map(r => (
+                  <span key={r.name} className="badge badge-info">
+                    {r.name}: {toPersianNums(String(r.score))} × وزن {toPersianNums(String(r.weight))}٪
+                  </span>
+                ))}
+                <span style={{ color: 'var(--text-tertiary)' }}>→</span>
+                <span className="badge badge-success">نمره نهایی: {toPersianNums(String(previewFinal))}</span>
+              </div>
+            </div>
+          )}
 
           {teamConfigs.length > 0 && (
             <div className="overflow-hidden rounded-xl" style={{ border: '1px solid var(--border-primary)' }}>

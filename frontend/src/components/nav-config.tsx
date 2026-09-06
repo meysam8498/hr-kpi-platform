@@ -8,8 +8,22 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-export interface NavItem { href: string; icon: LucideIcon; label: string; badge?: string }
+export type AppRole = 'admin' | 'manager' | 'employee'
+
+export interface NavItem { href: string; icon: LucideIcon; label: string; badge?: string; roles?: AppRole[] }
 export interface NavGroup { label: string; items: NavItem[] }
+
+/**
+ * Filter nav groups by role. Items without `roles` are visible to everyone.
+ * Single-admin app: the admin sees everything; the filtered view is for
+ * managers/employees if role gating is enabled later.
+ */
+export function navForRole(role: AppRole | null): NavGroup[] {
+  if (!role || role === 'admin') return NAV_GROUPS
+  return NAV_GROUPS
+    .map(g => ({ ...g, items: g.items.filter(it => !it.roles || it.roles.includes(role)) }))
+    .filter(g => g.items.length > 0)
+}
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -49,10 +63,10 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'تنظیمات',
     items: [
-      { href: '/admin/config', icon: Settings2, label: 'تنظیمات KPI' },
-      { href: '/admin/periods', icon: CalendarClock, label: 'دوره‌ها' },
-      { href: '/backup', icon: DatabaseBackup, label: 'پشتیبان‌گیری' },
-      { href: '/audit', icon: ScrollText, label: 'گزارش فعالیت' },
+      { href: '/admin/config', icon: Settings2, label: 'تنظیمات KPI', roles: ['admin'] },
+      { href: '/admin/periods', icon: CalendarClock, label: 'دوره‌ها', roles: ['admin'] },
+      { href: '/backup', icon: DatabaseBackup, label: 'پشتیبان‌گیری', roles: ['admin'] },
+      { href: '/audit', icon: ScrollText, label: 'گزارش فعالیت', roles: ['admin'] },
     ],
   },
 ]

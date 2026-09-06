@@ -11,7 +11,7 @@ import { nowJalali, toEnglishNums, toPersianNums } from '@/lib/jalali'
 import DesignerCard from '@/components/DesignerCard'
 import NotificationBell from '@/components/NotificationBell'
 import CommandPalette from '@/components/CommandPalette'
-import { NAV_GROUPS } from '@/components/nav-config'
+import { NAV_GROUPS, navForRole } from '@/components/nav-config'
 import HelpStrip from '@/components/HelpStrip'
 
 /* ─── Navigation Groups — shared with CommandPalette (nav-config.tsx) ─── */
@@ -69,6 +69,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState(false)
   const [cmdkOpen, setCmdkOpen] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  // Role-based menu filtering (single-admin app; defaults to full access).
+  const [role, setRole] = useState<import('@/components/nav-config').AppRole | null>('admin')
+  useEffect(() => {
+    try { setRole((window.localStorage.getItem('app-role') as any) || 'admin') } catch { /* noop */ }
+  }, [])
+  const visibleGroups = navForRole(role)
 
   useEffect(() => {
     setMounted(true)
@@ -207,8 +213,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {NAV_GROUPS.map((group, gi) => (
-            <div key={gi} style={{ marginBottom: gi < NAV_GROUPS.length - 1 ? 14 : 0 }}>
+          {visibleGroups.map((group, gi) => (
+            <div key={gi} style={{ marginBottom: gi < visibleGroups.length - 1 ? 14 : 0 }}>
               <div
                 style={{
                   fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-tertiary)',
@@ -374,7 +380,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto" style={{ padding: '10px 10px' }}>
-            {NAV_GROUPS.map((group, gi) => {
+            {visibleGroups.map((group, gi) => {
               const isCollapsed = collapsedGroups[group.label] ?? false
               const hasActive = group.items.some(
                 it => pathname === it.href || pathname?.startsWith(it.href + '/')

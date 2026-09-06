@@ -516,6 +516,10 @@ export const notificationsApi = {
   markAllRead: () => request('/api/notifications/read-all', { method: 'PUT' }),
   delete: (id: number) => request(`/api/notifications/${id}`, { method: 'DELETE' }),
   checkDeadlines: () => request<{ created: number; message: string }>('/api/notifications/check-deadlines', { method: 'POST' }),
+  remindManagers: (periodId: number) =>
+    request<{ created: number; missing: string[]; message: string }>(
+      `/api/notifications/remind-managers/${periodId}`, { method: 'POST' }
+    ),
 }
 
 // ─── Audit Logs API ───

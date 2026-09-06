@@ -7,8 +7,72 @@ import { teamsApi, employeesApi, kpiApi, goalsApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod, Goal } from '@/lib/api'
 import { toPersianNums } from '@/lib/jalali'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar } from 'recharts'
-import { Printer, UserRound, ClipboardList, PieChart, ListChecks } from 'lucide-react'
+import { Printer, UserRound, ClipboardList, PieChart, ListChecks, Info } from 'lucide-react'
 import { ScorePill, EmptyState, Avatar, TableSkeleton } from '@/components/ui'
+
+/* ─── Score breakdown popover — «این عدد از کجا آمد؟» ─── */
+function BreakdownPopover({ result }: { result: any }) {
+  const [open, setOpen] = useState(false)
+  const bd = result?.breakdown as Record<string, any> | null | undefined
+  if (!bd) return null
+  const blend = bd.blend as Record<string, any> | undefined
+  const criteria: any[] = bd.criteria || []
+  const weights: Record<string, number> = blend?.weights || {}
+  const weightSum: number = blend?.weight_sum || 1
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        title="باز و بسته کردن جزئیات محاسبه"
+        style={{
+          width: 26, height: 26, borderRadius: 8, border: '1px solid var(--border-primary)',
+          background: open ? 'var(--accent-primary-subtle)' : 'var(--bg-tertiary)',
+          color: open ? 'var(--accent-primary)' : 'var(--text-tertiary)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Info size={14} />
+      </button>
+      {open && (
+        <div
+          className="animate-slideUp"
+          style={{
+            position: 'absolute', top: 32, left: 0, zIndex: 20, width: 300,
+            padding: 14, borderRadius: 12,
+            background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)',
+            boxShadow: 'var(--shadow-lg)', textAlign: 'right',
+          }}
+        >
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
+            این نمره چگونه محاسبه شد؟
+          </div>
+          {blend && (
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.9 }}>
+              نمره مدیر: <strong>{toPersianNums(String(blend.base_score))}</strong>
+              {blend.peer_count > 0 && <> · ارزیابی ۳۶۰: <strong>{toPersianNums(String(blend.peer_score))}</strong> (وزن {toPersianNums(String(Math.round((weights.peer || 0) * 100)))}٪)</>}
+              {blend.goal_count > 0 && <> · اهداف: <strong>{toPersianNums(String(blend.goal_achievement))}٪</strong> (وزن {toPersianNums(String(Math.round((weights.goal || 0) * 100)))}٪)</>}
+              {blend.base_score !== undefined && <> · وزن نمره مدیر: {toPersianNums(String(Math.round((weights.base || 0) * 100)))}٪</>}
+            </div>
+          )}
+          <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: 8 }}>
+            {criteria.map((c: any) => (
+              <div key={c.criterion_id} className="flex items-center justify-between" style={{ fontSize: '0.66rem', padding: '3px 0', color: 'var(--text-secondary)' }}>
+                <span>{c.criterion_name}</span>
+                <span style={{ fontFamily: "'Vazirmatn', monospace" }}>
+                  {c.has_entry ? toPersianNums(String(Math.round(c.score * 10) / 10)) : '—'} × {toPersianNums(String(c.weight))}٪
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', marginTop: 8, lineHeight: 1.7 }}>
+            نمره نهایی = میانگین وزنی بخش‌های دارای داده (وزن‌ها نرمال شده‌اند؛ مجموع فعلی {toPersianNums(String(Math.round(weightSum * 100) / 100))}).
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function ReportsPage() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -343,7 +407,10 @@ export default function ReportsPage() {
                             )
                           })()}
                         </div>
-                        <ScorePill score={r.final_score} />
+                        <div className="flex items-center gap-2">
+                          <BreakdownPopover result={r} />
+                          <ScorePill score={r.final_score} />
+                        </div>
                       </div>
                     ))}
                   </div>

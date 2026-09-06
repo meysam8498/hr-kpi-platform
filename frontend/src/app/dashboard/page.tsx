@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Building2, IdCard, Users, Search } from 'lucide-react'
+import { Building2, IdCard, Users, Search, BellRing, CheckCircle2 } from 'lucide-react'
 import AppLayout from '@/components/Layout'
-import { teamsApi, employeesApi, kpiApi } from '@/lib/api'
+import { teamsApi, employeesApi, kpiApi, notificationsApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod } from '@/lib/api'
 import { gregorianToJalaliStr, toPersianNums } from '@/lib/jalali'
 import { Avatar, CountUp, EmptyState, TableSkeleton, CardsSkeleton } from '@/components/ui'
@@ -16,6 +16,21 @@ export default function DashboardPage() {
   const [activePeriod, setActivePeriod] = useState<ReportingPeriod | null>(null)
   const [companyAvg, setCompanyAvg] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [remindState, setRemindState] = useState<'idle' | 'busy' | 'done'>('idle')
+  const [remindMsg, setRemindMsg] = useState('')
+
+  const sendReminder = async () => {
+    if (!activePeriod || remindState === 'busy') return
+    setRemindState('busy')
+    try {
+      const r = await notificationsApi.remindManagers(activePeriod.id)
+      setRemindMsg(r.message)
+      setRemindState(r.created > 0 ? 'done' : 'idle')
+    } catch {
+      setRemindMsg('خطا در ارسال یادآوری')
+      setRemindState('idle')
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -102,6 +117,31 @@ export default function DashboardPage() {
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#50c990', animation: 'pulse 2s ease-in-out infinite' }} />
                   دوره فعال: <strong>{activePeriod.name}</strong>
                 </div>
+              )}
+              {activePeriod && remindState !== 'done' && (
+                <button
+                  onClick={sendReminder}
+                  disabled={remindState === 'busy'}
+                  title="اعلانی در پنل ثبت می‌شود که تیم‌های بدون امتیاز را نام می‌برد"
+                  style={{
+                    marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '6px 14px', borderRadius: 20,
+                    background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+                    color: '#fff', fontSize: '0.72rem', cursor: 'pointer',
+                    opacity: remindState === 'busy' ? 0.6 : 1,
+                  }}
+                >
+                  <BellRing size={13} />
+                  {remindState === 'busy' ? 'در حال ارسال...' : 'یادآوری به مدیران تیم‌های بدون امتیاز'}
+                </button>
+              )}
+              {remindState === 'done' && (
+                <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(80,201,144,0.18)', border: '1px solid rgba(80,201,144,0.35)', color: '#fff', fontSize: '0.72rem' }}>
+                  <CheckCircle2 size={13} /> {remindMsg}
+                </div>
+              )}
+              {remindMsg && remindState !== 'done' && (
+                <div style={{ marginTop: 8, fontSize: '0.68rem', opacity: 0.85 }}>{remindMsg}</div>
               )}
             </div>
 

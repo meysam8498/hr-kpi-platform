@@ -129,20 +129,38 @@ def seed_default_data():
         db.commit()
         print("[OK] Default data seeded successfully.")
 
-        # 6. Default accounts — admin/admin123 (must change), hr/hr123
-        from .models import User
-        from .auth import hash_password
-        if not db.query(User).first():
-            db.add(User(username="admin", password_hash=hash_password("admin123"),
-                        full_name="مدیر سیستم", role="admin"))
-            db.add(User(username="hr", password_hash=hash_password("hr123"),
-                        full_name="مدیر منابع انسانی", role="hr"))
-            db.commit()
-            print("[OK] Default users seeded: admin/admin123, hr/hr123")
-
     except Exception as e:
         db.rollback()
         print(f"[WARN] Seed error: {e}")
+    finally:
+        db.close()
+
+    seed_default_users()
+
+
+def seed_default_users():
+    """Ensure the built-in admin and HR accounts exist — runs on every
+    startup so existing databases (e.g. Docker volumes created before
+    authentication was added) still get their login accounts."""
+    from .models import User
+    from .auth import hash_password
+    db = SessionLocal()
+    try:
+        created = False
+        if not db.query(User).filter(User.username == "admin").first():
+            db.add(User(username="admin", password_hash=hash_password("admin123"),
+                        full_name="مدیر سیستم", role="admin"))
+            created = True
+        if not db.query(User).filter(User.username == "hr").first():
+            db.add(User(username="hr", password_hash=hash_password("hr123"),
+                        full_name="مدیر منابع انسانی", role="hr"))
+            created = True
+        if created:
+            db.commit()
+            print("[OK] Default users ensured: admin/admin123, hr/hr123")
+    except Exception as e:
+        db.rollback()
+        print(f"[WARN] User seed error: {e}")
     finally:
         db.close()
 

@@ -506,13 +506,15 @@ async def bulk_import_excel(file: UploadFile = File(...), db: Session = Depends(
                     errors.append({"row": i, "reason": f"تاریخ استخدام نامعتبر: {cell(row, 'hire_date') or '—'}"})
                     continue
 
+            if db.query(Employee).filter(Employee.employee_code == code).first():
+                skipped.append({"row": i, "employee_code": code, "reason": "کد پرسنلی تکراری"})
+                continue
+
+            # Team created only AFTER duplicate check — re-importing a file
+            # must never leave orphan empty teams behind.
             team_id = get_or_create_team(team_name)
             if team_id is None:
                 errors.append({"row": i, "reason": "نام واحد/تیم خالی است"})
-                continue
-
-            if db.query(Employee).filter(Employee.employee_code == code).first():
-                skipped.append({"row": i, "employee_code": code, "reason": "کد پرسنلی تکراری"})
                 continue
 
             # Normalize phone: keep digits, dash and + only (multi-number cells keep first)

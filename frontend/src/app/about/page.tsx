@@ -1,0 +1,150 @@
+'use client'
+
+/**
+ * About page — what the app does, who built it, how roles work.
+ */
+import { Gauge, ShieldCheck, UserCog, Users, User, Info } from 'lucide-react'
+import AppLayout from '@/components/Layout'
+import DesignerCard from '@/components/DesignerCard'
+import { GitFork, Container, Briefcase, Send, MessageCircle } from 'lucide-react'
+
+const LINKS = [
+  { href: 'https://github.com/meysam8498', label: 'گیت‌هاب', icon: GitFork },
+  { href: 'https://hub.docker.com/u/meysam8498', label: 'داکر هاب', icon: Container },
+  { href: 'https://linkedin.com/in/meysam-ijadi-920817127/', label: 'لینکدین', icon: Briefcase },
+  { href: 'https://t.me/Meysam_Ijadi', label: 'تلگرام', icon: Send },
+  { href: 'https://wa.me/Meysam_Ijadi', label: 'واتس‌اپ', icon: MessageCircle },
+]
+
+const ROLE_CARDS = [
+  {
+    icon: UserCog, role: 'مدیر سیستم (Admin)', color: 'var(--accent-danger)',
+    perms: ['دسترسی کامل به همه بخش‌ها', 'ساخت کاربران و تعیین دسترسی', 'تنظیمات KPI، دوره‌ها و پشتیبان‌گیری'],
+  },
+  {
+    icon: ShieldCheck, role: 'مدیر منابع انسانی (HR)', color: 'var(--accent-info)',
+    perms: ['مشاهده همه تیم‌ها و گزارش‌ها', 'مدیریت دوره‌ها و امتیازدهی', 'بدون دسترسی به ساخت کاربر و پشتیبان‌گیری'],
+  },
+  {
+    icon: Users, role: 'مدیر تیم (Manager)', color: 'var(--accent-primary)',
+    perms: ['امتیازدهی فقط به اعضای تیم خود', 'مشاهده گزارش‌های تیم خود', 'بدون دسترسی به تنظیمات و سایر تیم‌ها'],
+  },
+  {
+    icon: User, role: 'کارمند (Employee)', color: 'var(--accent-success)',
+    perms: ['مشاهده فقط گزارش خودش', 'ثبت خودارزیابی', 'بدون دسترسی به اطلاعات سایر همکاران'],
+  },
+]
+
+export default function AboutPage() {
+  return (
+    <AppLayout>
+      <div className="space-y-6 animate-fadeIn" style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div className="flex items-center gap-3">
+          <span className="card-header-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
+            <Info size={21} />
+          </span>
+          <div>
+            <h1 className="page-title" style={{ margin: 0 }}>درباره برنامه</h1>
+            <p className="page-subtitle">سیستم مدیریت و ارزیابی عملکرد کارمندان بر اساس KPI</p>
+          </div>
+        </div>
+
+        {/* What it is */}
+        <div className="premium-card p-6">
+          <h2 className="font-bold mb-3 flex items-center gap-2"><Gauge size={17} /> این سیستم چه کاری انجام می‌دهد؟</h2>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 2 }}>
+            یک پلتفرم داخلی برای ثبت، محاسبه و گزارش‌گیری شاخص‌های کلیدی عملکرد (KPI) کارمندان است.
+            مدیران هر تیم در پایان هر دوره، نمره ۰ تا ۱۰۰ اعضای تیم خود را وارد می‌کنند؛ سیستم به‌صورت خودکار
+            نمره نهایی را با ترکیب امتیاز مدیر، ارزیابی ۳۶۰ درجه، تحقق اهداف و حضور محاسبه می‌کند و
+            گزارش‌های فردی، تیمی و سازمانی را به‌صورت بصری و قابل خروجی (اکسل و چاپ) ارائه می‌دهد.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+            {[
+              { k: 'محاسبه', v: 'میانگین وزنی قابل تنظیم' },
+              { k: 'دوره‌ها', v: 'ماهانه / فصلی / سالانه' },
+              { k: 'گزارش', v: 'فردی، تیمی، سازمانی' },
+              { k: 'اجرا', v: 'کاملاً لوکال با داکر' },
+            ].map(x => (
+              <div key={x.k} className="p-3 rounded-xl text-center" style={{ background: 'var(--bg-tertiary)' }}>
+                <div className="text-xs font-bold" style={{ color: 'var(--accent-primary)' }}>{x.k}</div>
+                <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{x.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Roles */}
+        <div className="premium-card p-6">
+          <h2 className="font-bold mb-1">سطوح دسترسی</h2>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>
+            هر نقش فقط منوها و داده‌های مرتبط با خودش را می‌بیند. حساب‌های کاربری توسط مدیر سیستم در صفحه «کاربران» ساخته می‌شوند.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {ROLE_CARDS.map(rc => (
+              <div key={rc.role} className="p-4 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span
+                    className="flex items-center justify-center flex-shrink-0"
+                    style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--bg-secondary)', color: rc.color, border: '1px solid var(--border-primary)' }}
+                  >
+                    <rc.icon size={16} />
+                  </span>
+                  <span className="font-bold text-sm">{rc.role}</span>
+                </div>
+                <ul style={{ paddingRight: 18, margin: 0 }}>
+                  {rc.perms.map(p => (
+                    <li key={p} className="text-xs" style={{ color: 'var(--text-secondary)', lineHeight: 2 }}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Designer */}
+        <div className="premium-card p-6">
+          <h2 className="font-bold mb-4">طراح و توسعه‌دهنده</h2>
+          <div className="flex items-center gap-5 flex-wrap">
+            <div
+              className="flex items-center justify-center flex-shrink-0"
+              style={{
+                width: 64, height: 64, borderRadius: 18,
+                background: 'linear-gradient(135deg, #5b6abf 0%, #8b6dd7 100%)',
+                boxShadow: '0 4px 18px var(--accent-primary-glow)',
+                color: 'white', fontSize: '1.4rem', fontWeight: 800,
+              }}
+            >
+              م
+            </div>
+            <div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                میثم ایجادی
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                طراح و توسعه‌دهنده سیستم
+              </div>
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {LINKS.map(l => (
+                  <a
+                    key={l.label}
+                    href={l.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-ghost btn-sm"
+                  >
+                    <l.icon size={13} /> {l.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Version */}
+        <div className="text-center text-xs" style={{ color: 'var(--text-tertiary)', paddingBottom: 10 }}>
+          نسخه ۱.۳.۲ — ساخته‌شده با Next.js، FastAPI و SQLite
+        </div>
+      </div>
+    </AppLayout>
+  )
+}

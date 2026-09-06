@@ -9,7 +9,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import { Search, IdCard } from 'lucide-react'
-import { NAV_GROUPS } from '@/components/nav-config'
+import { NAV_GROUPS, navForRole } from '@/components/nav-config'
+import { useAuth } from '@/lib/auth-context'
 import { employeesApi, type Employee } from '@/lib/api'
 import { Avatar } from '@/components/ui'
 
@@ -28,19 +29,20 @@ export default function CommandPalette({
   onClose: () => void
 }) {
   const router = useRouter()
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [activeIdx, setActiveIdx] = useState(0)
   const [employees, setEmployees] = useState<Employee[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // Flatten nav targets once
+  // Flatten nav targets, filtered by the signed-in user's role
   const navTargets = useMemo<NavTarget[]>(
     () =>
-      NAV_GROUPS.flatMap(g =>
+      navForRole(user?.role ?? null).flatMap(g =>
         g.items.map(i => ({ href: i.href, label: i.label, icon: i.icon, group: g.label }))
       ),
-    []
+    [user?.role]
   )
 
   // Load employees once when opened (small org — one fetch is fine)

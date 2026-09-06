@@ -17,7 +17,7 @@ from .database import init_db, SessionLocal
 from .models import Team, Employee, KPICriterion, TeamKPIConfig, ReportingPeriod, CriterionCategory
 from .routes import (
     teams, employees, kpi, pips, self_evaluations, custom_reports,
-    notifications, goals, hr_analytics, absences, peer_reviews, audit, backup,
+    notifications, goals, hr_analytics, absences, peer_reviews, audit, backup, auth,
 )
 
 
@@ -129,6 +129,17 @@ def seed_default_data():
         db.commit()
         print("[OK] Default data seeded successfully.")
 
+        # 6. Default accounts — admin/admin123 (must change), hr/hr123
+        from .models import User
+        from .auth import hash_password
+        if not db.query(User).first():
+            db.add(User(username="admin", password_hash=hash_password("admin123"),
+                        full_name="مدیر سیستم", role="admin"))
+            db.add(User(username="hr", password_hash=hash_password("hr123"),
+                        full_name="مدیر منابع انسانی", role="hr"))
+            db.commit()
+            print("[OK] Default users seeded: admin/admin123, hr/hr123")
+
     except Exception as e:
         db.rollback()
         print(f"[WARN] Seed error: {e}")
@@ -170,6 +181,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(teams.router)
 app.include_router(employees.router)
 app.include_router(kpi.router)

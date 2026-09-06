@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Employee, Team
+from ..models import Employee, Team, User
+from ..auth import require_admin_or_hr, get_current_user
 from ..schemas import (EmployeeCreate, EmployeeUpdate, EmployeeOut, BulkImportItem,
                        BulkImportItemByName, BulkImportResult)
 from .audit import log_audit
@@ -144,7 +145,7 @@ def create_employee(request: EmployeeCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{emp_id}", response_model=EmployeeOut)
-def update_employee(emp_id: int, request: EmployeeUpdate, db: Session = Depends(get_db)):
+def update_employee(emp_id: int, request: EmployeeUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
@@ -206,7 +207,7 @@ def unarchive_employee(emp_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{emp_id}")
-def delete_employee(emp_id: int, db: Session = Depends(get_db)):
+def delete_employee(emp_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Delete an employee and all dependent records (explicit cleanup —
     some child tables lack ORM cascade, e.g. peer_reviews, kpi_results)."""
     emp = db.query(Employee).filter(Employee.id == emp_id).first()

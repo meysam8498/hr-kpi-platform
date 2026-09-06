@@ -15,6 +15,8 @@ from fastapi.responses import StreamingResponse, FileResponse
 
 from ..config import settings
 from ..database import engine, get_db
+from ..auth import require_admin
+from ..models import User
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/api/backup", tags=["Backup"])
@@ -44,7 +46,7 @@ def backup_info(db: Session = Depends(get_db)):
 
 
 @router.get("/download")
-def download_backup():
+def download_backup(_: User = Depends(require_admin)):
     path = _db_path()
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="فایل دیتابیس یافت نشد")
@@ -57,7 +59,7 @@ def download_backup():
 
 
 @router.post("/restore")
-async def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db), _: User = Depends(require_admin)):
     """Replace the live database with the uploaded backup file."""
     content = await file.read()
     if len(content) < 100:  # clearly not a valid SQLite db

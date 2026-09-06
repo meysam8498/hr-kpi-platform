@@ -39,6 +39,29 @@ class CriterionCategory(str, enum.Enum):
 # ──────────────────────────────────────────────
 # Team
 # ──────────────────────────────────────────────
+class User(Base):
+    """Login accounts. Roles:
+    - admin:  full control incl. users, config, periods, backup
+    - hr:     HR manager — sees everything, controls periods/scoring, no user management
+    - manager: team manager — scores own team only, sees own-team reports
+    - employee: sees own reports and own self-evaluation only
+    """
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="employee")  # admin/hr/manager/employee
+    team_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("teams.id"), nullable=True)  # for managers/employees
+    employee_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("employees.id"), nullable=True)  # link employee self-view
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    team: Mapped["Team"] = relationship("Team")
+    employee: Mapped["Employee"] = relationship("Employee")
+
+
 class Team(Base):
     __tablename__ = "teams"
 

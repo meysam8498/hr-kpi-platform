@@ -27,6 +27,10 @@ async function request<T = unknown>(path: string, options: FetchOptions = {}): P
     headers['Content-Type'] = 'application/json'
     fetchOptions.body = JSON.stringify(json)
   }
+  if (typeof window !== 'undefined') {
+    const token = window.localStorage.getItem('auth-token')
+    if (token) headers['Authorization'] = `Bearer ${token}`
+  }
   const res = await fetch(`${API_BASE}${path}`, { ...fetchOptions, headers })
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({ detail: res.statusText }))
@@ -524,6 +528,26 @@ export const notificationsApi = {
     request<{ created: number; missing: string[]; message: string }>(
       `/api/notifications/remind-managers/${periodId}`, { method: 'POST' }
     ),
+}
+
+// ─── Auth / Users API ───
+export interface AuthUserRow {
+  id: number
+  username: string
+  full_name: string
+  role: 'admin' | 'hr' | 'manager' | 'employee'
+  team_id: number | null
+  employee_id: number | null
+  is_active: boolean
+}
+
+export const authUsersApi = {
+  list: () => request<AuthUserRow[]>('/api/auth/users'),
+  create: (data: { username: string; password: string; full_name: string; role: string; team_id?: number | null; employee_id?: number | null }) =>
+    request<AuthUserRow>('/api/auth/users', { method: 'POST', json: data }),
+  update: (id: number, data: { full_name?: string; password?: string; role?: string; team_id?: number | null; employee_id?: number | null; is_active?: boolean }) =>
+    request<AuthUserRow>(`/api/auth/users/${id}`, { method: 'PUT', json: data }),
+  remove: (id: number) => request<{ message: string }>(`/api/auth/users/${id}`, { method: 'DELETE' }),
 }
 
 // ─── Audit Logs API ───

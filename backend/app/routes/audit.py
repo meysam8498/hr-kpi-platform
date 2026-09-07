@@ -8,8 +8,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import AuditLog
+from ..models import AuditLog, User
 from ..schemas import AuditLogOut
+from ..auth import require_admin_or_hr
 
 router = APIRouter(prefix="/api/audit-logs", tags=["Audit Logs"])
 
@@ -28,6 +29,7 @@ def list_logs(
     action: str = None,
     limit: int = 200,
     db: Session = Depends(get_db),
+    _: User = Depends(require_admin_or_hr),
 ):
     query = db.query(AuditLog)
     if entity_type:

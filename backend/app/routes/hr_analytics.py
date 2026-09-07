@@ -19,8 +19,9 @@ from datetime import date, timedelta
 from ..database import get_db
 from ..models import (
     Employee, Team, KPIResult, ReportingPeriod,
-    AbsenceRecord, SelfEvaluation, Goal,
+    AbsenceRecord, SelfEvaluation, Goal, User,
 )
+from ..auth import require_admin_or_hr
 
 router = APIRouter(prefix="/api/hr", tags=["HR Analytics"])
 
@@ -41,7 +42,7 @@ def _band(score: float) -> str:
 
 
 @router.get("/analytics")
-def hr_analytics(period_id: int = None, db: Session = Depends(get_db)):
+def hr_analytics(period_id: int = None, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """HR dashboard: workforce overview + performance analytics for a period."""
     # ── 1. Workforce overview ──
     employees = db.query(Employee).all()

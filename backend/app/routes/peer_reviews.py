@@ -9,8 +9,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from ..database import get_db
-from ..models import PeerReview, Employee, ReportingPeriod
+from ..models import PeerReview, Employee, ReportingPeriod, User
 from ..schemas import PeerReviewCreate, PeerReviewUpdate, PeerReviewOut
+from ..auth import (
+    get_current_user, require_manager_plus, require_admin_or_hr,
+    ensure_employee_in_scope, ensure_own_employee,
+)
 
 router = APIRouter(prefix="/api/peer-reviews", tags=["Peer Reviews"])
 
@@ -38,8 +42,22 @@ def list_reviews(
     reviewee_id: int = None,
     reviewer_id: int = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
+    """Employees see only reviews where THEY are the reviewer or reviewee.
+    Managers see their team's reviews; admin/HR see all."""
     query = db.query(PeerReview)
+    if user.role == "employee":
+        if user.employee_id is None:
+            return []
+        query = query.filter(
+            (PeerReview.reviewer_id == user.employee_id) | (PeerReview.reviewee_id == user.employee_id)
+        )
+    elif user.role == "manager" and user.team_id is not None:
+        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id == user.team_id).all()]
+        query = query.filter(
+            PeerReview.reviewer_id.in_(team_emp_ids) | PeerReview.reviewee_id.in_(team_emp_ids)
+        )
     if period_id:
         query = query.filter(PeerReview.period_id == period_id)
     if reviewee_id:
@@ -51,15 +69,24 @@ def list_reviews(
 
 
 @router.post("/", response_model=PeerReviewOut, status_code=201)
-def create_review(request: PeerReviewCreate, db: Session = Depends(get_db)):
+def create_review(request: PeerReviewCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     if request.reviewer_id == request.reviewee_id:
         raise HTTPException(status_code=400, detail="کارمند نمی‌تواند به خودش نمره دهد")
+    # Employees may only review teammates, and only AS themselves
+    if user.role == "employee":
+        if user.employee_id is None or int(request.reviewer_id) != int(user.employee_id):
+            raise HTTPException(status_code=403, detail="فقط می‌توانید به عنوان خودتان ارزیابی ثبت کنید")
     reviewer = db.query(Employee).filter(Employee.id == request.reviewer_id).first()
     if not reviewer:
         raise HTTPException(status_code=404, detail="ارزیاب یافت نشد")
     reviewee = db.query(Employee).filter(Employee.id == request.reviewee_id).first()
     if not reviewee:
         raise HTTPException(status_code=404, detail="کارمند مورد ارزیابی یافت نشد")
+    # 360 evaluation is strictly within the same team
+    if reviewer.team_id is None or reviewee.team_id is None or reviewer.team_id != reviewee.team_id:
+        raise HTTPException(status_code=403, detail="ارزیابی ۳۶۰ فقط بین همکاران تیم خودتان امکان‌پذیر است")
+    if user.role == "manager" and user.team_id is not None and reviewer.team_id != user.team_id:
+        raise HTTPException(status_code=403, detail="ارزیابی خارج از تیم شما مجاز نیست")
     period = db.query(ReportingPeriod).filter(ReportingPeriod.id == request.period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="دوره یافت نشد")
@@ -80,10 +107,17 @@ def create_review(request: PeerReviewCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{review_id}", response_model=PeerReviewOut)
-def update_review(review_id: int, request: PeerReviewUpdate, db: Session = Depends(get_db)):
+def update_review(review_id: int, request: PeerReviewUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     review = db.query(PeerReview).filter(PeerReview.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="ارزیابی یافت نشد")
+    # Only the original reviewer (or admin/HR) can edit a review
+    if user.role == "employee" and (user.employee_id is None or review.reviewer_id != user.employee_id):
+        raise HTTPException(status_code=403, detail="فقط ارزیاب می‌تواند ارزیابی خودش را ویرایش کند")
+    if user.role == "manager" and user.team_id is not None:
+        reviewer = db.query(Employee).filter(Employee.id == review.reviewer_id).first()
+        if reviewer and reviewer.team_id != user.team_id:
+            raise HTTPException(status_code=403, detail="این ارزیابی متعلق به تیم شما نیست")
     for field, value in request.model_dump(exclude_unset=True).items():
         setattr(review, field, value)
     db.commit()
@@ -92,18 +126,26 @@ def update_review(review_id: int, request: PeerReviewUpdate, db: Session = Depen
 
 
 @router.delete("/{review_id}")
-def delete_review(review_id: int, db: Session = Depends(get_db)):
+def delete_review(review_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     review = db.query(PeerReview).filter(PeerReview.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="ارزیابی یافت نشد")
+    # Employees can delete only their own review; managers their team's; admin/HR any
+    if user.role == "employee" and (user.employee_id is None or review.reviewer_id != user.employee_id):
+        raise HTTPException(status_code=403, detail="فقط ارزیاب می‌تواند ارزیابی خودش را حذف کند")
+    if user.role == "manager" and user.team_id is not None:
+        reviewer = db.query(Employee).filter(Employee.id == review.reviewer_id).first()
+        if reviewer and reviewer.team_id != user.team_id:
+            raise HTTPException(status_code=403, detail="این ارزیابی متعلق به تیم شما نیست")
     db.delete(review)
     db.commit()
     return {"message": "ارزیابی حذف شد"}
 
 
 @router.get("/summary/{reviewee_id}/{period_id}")
-def review_summary(reviewee_id: int, period_id: int, db: Session = Depends(get_db)):
-    """Average peer scores for one employee in one period."""
+def review_summary(reviewee_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
+    """Average peer scores for one employee in one period.
+    Managers/admin/HR only — employees must NOT see their 360 summary."""
     reviews = db.query(PeerReview).filter(
         PeerReview.reviewee_id == reviewee_id,
         PeerReview.period_id == period_id,

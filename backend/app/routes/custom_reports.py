@@ -11,16 +11,17 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import (
     Employee, Team, KPICriterion, KPIEntry, KPIResult,
-    ReportingPeriod, TeamKPIConfig, SelfEvaluation,
+    ReportingPeriod, TeamKPIConfig, SelfEvaluation, User,
 )
 from ..schemas import CustomReportRequest
 from ..utils.jalali import parse_jalali_or_gregorian
+from ..auth import require_manager_plus, require_admin_or_hr
 
 router = APIRouter(prefix="/api/reports", tags=["Custom Reports"])
 
 
 @router.post("/custom")
-def generate_custom_report(request: CustomReportRequest, db: Session = Depends(get_db)):
+def generate_custom_report(request: CustomReportRequest, db: Session = Depends(get_db), _: User = Depends(require_manager_plus)):
     """Generate a custom report with flexible filters."""
     # Build employee list
     emp_query = db.query(Employee).filter(Employee.is_archived == False)
@@ -231,7 +232,7 @@ def _build_report(request: CustomReportRequest, db: Session) -> dict:
 
 
 @router.post("/custom/export")
-def export_custom_report_excel(request: CustomReportRequest, db: Session = Depends(get_db)):
+def export_custom_report_excel(request: CustomReportRequest, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Export the custom report (same filters) as a styled Excel file."""
     import io
     from openpyxl import Workbook

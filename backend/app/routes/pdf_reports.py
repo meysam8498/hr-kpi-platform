@@ -17,6 +17,8 @@ from ..models import (
 )
 from ..pdf import KPIPDF, build_pdf, score_color, fonts_available, _fa_num, _shape
 from ..utils.jalali import gregorian_to_jalali
+from ..auth import get_current_user, require_manager_plus
+from ..models import User
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF Reports"])
 
@@ -40,9 +42,13 @@ def _period_label(period: ReportingPeriod) -> str:
 
 
 @router.get("/employee/{employee_id}/{period_id}")
-def employee_pdf(employee_id: int, period_id: int, db: Session = Depends(get_db)):
+def employee_pdf(employee_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     if not fonts_available():
         raise HTTPException(status_code=503, detail="فونت PDF نصب نیست")
+    if user.role == "manager":
+        emp = db.query(Employee).filter(Employee.id == employee_id).first()
+        if emp and user.team_id is not None and emp.team_id != user.team_id:
+            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
 
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
     if not emp:
@@ -144,9 +150,11 @@ def employee_pdf(employee_id: int, period_id: int, db: Session = Depends(get_db)
 
 
 @router.get("/team/{team_id}/{period_id}")
-def team_pdf(team_id: int, period_id: int, db: Session = Depends(get_db)):
+def team_pdf(team_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     if not fonts_available():
         raise HTTPException(status_code=503, detail="فونت PDF نصب نیست")
+    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+        raise HTTPException(status_code=403, detail="فقط گزارش تیم خودتان در دسترس شماست")
 
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:

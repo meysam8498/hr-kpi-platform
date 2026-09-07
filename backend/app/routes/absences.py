@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import AbsenceRecord, Employee, Team
+from ..models import AbsenceRecord, Employee, Team, User
+from ..auth import get_current_user, require_manager_plus, require_admin_or_hr
 from ..schemas import AbsenceCreate, AbsenceOut
 
 router = APIRouter(prefix="/api/absences", tags=["Absences"])
@@ -33,8 +34,17 @@ def list_absences(
     from_date: date = None,
     to_date: date = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     query = db.query(AbsenceRecord)
+    # Employees see only their own absences; managers their team's
+    if user.role == "employee":
+        if user.employee_id is None:
+            return []
+        query = query.filter(AbsenceRecord.employee_id == user.employee_id)
+    elif user.role == "manager" and user.team_id is not None:
+        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id == user.team_id).all()]
+        query = query.filter(AbsenceRecord.employee_id.in_(team_emp_ids))
     if employee_id:
         query = query.filter(AbsenceRecord.employee_id == employee_id)
     if from_date:
@@ -46,7 +56,7 @@ def list_absences(
 
 
 @router.post("/", response_model=AbsenceOut, status_code=201)
-def create_absence(request: AbsenceCreate, db: Session = Depends(get_db)):
+def create_absence(request: AbsenceCreate, db: Session = Depends(get_db), _: User = Depends(require_manager_plus)):
     emp = db.query(Employee).filter(Employee.id == request.employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
@@ -68,7 +78,7 @@ def create_absence(request: AbsenceCreate, db: Session = Depends(get_db)):
 
 
 @router.delete("/{absence_id}")
-def delete_absence(absence_id: int, db: Session = Depends(get_db)):
+def delete_absence(absence_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     record = db.query(AbsenceRecord).filter(AbsenceRecord.id == absence_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="رکورد غیبت یافت نشد")
@@ -79,6 +89,7 @@ def delete_absence(absence_id: int, db: Session = Depends(get_db)):
 
 @router.get("/summary")
 def absence_summary(
+
     from_date: date = None,
     to_date: date = None,
     db: Session = Depends(get_db),

@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from ..database import get_db
-from ..models import Notification, ReportingPeriod, Team, Employee, KPIEntry
+from ..models import Notification, ReportingPeriod, Team, Employee, KPIEntry, User
 from ..schemas import NotificationCreate, NotificationOut
+from ..auth import get_current_user, require_admin_or_hr
 
 router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 
@@ -28,7 +29,7 @@ def unread_count(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=NotificationOut, status_code=201)
-def create_notification(request: NotificationCreate, db: Session = Depends(get_db)):
+def create_notification(request: NotificationCreate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     notif = Notification(
         title=request.title, message=request.message,
         type=request.type, link=request.link,
@@ -67,7 +68,7 @@ def delete_notification(notif_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/remind-managers/{period_id}")
-def remind_managers(period_id: int, db: Session = Depends(get_db)):
+def remind_managers(period_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Create a reminder listing teams whose members have no scores in the period.
 
     Single-summary design (keeps the panel simple): one notification naming
@@ -111,7 +112,7 @@ def remind_managers(period_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/check-deadlines")
-def check_deadlines(db: Session = Depends(get_db)):
+def check_deadlines(db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Auto-generate reminders for periods ending soon."""
     today = date.today()
     periods = db.query(ReportingPeriod).filter(

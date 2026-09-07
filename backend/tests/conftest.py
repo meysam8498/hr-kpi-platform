@@ -15,6 +15,7 @@ from app.main import app
 from app.database import Base, get_db
 from app.models import (
     Team, Employee, KPICriterion, TeamKPIConfig, CriterionCategory,
+    User,
 )
 
 # In-memory test database with StaticPool so all sessions share the same DB
@@ -70,6 +71,38 @@ def client():
     """Provide a FastAPI test client."""
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
+
+
+@pytest.fixture
+def admin_headers(client):
+    """Create an admin user and return Authorization headers."""
+    from app.auth import hash_password
+    from app.database import SessionLocal
+
+    # Use the real SessionLocal bound to the test override? No — get_db is
+    # overridden to the in-memory test DB, so create the user via the client
+    # after directly inserting with the test session.
+    from tests.conftest import TestSessionLocal  # noqa: F401
+    from sqlalchemy.orm import Session as _S
+
+    # Insert admin directly using the same engine the app's get_db override uses
+    session = TestSessionLocal()
+    user = session.query(User).filter(User.username == "testadmin").first()
+    if not user:
+        user = User(
+            username="testadmin",
+            password_hash=hash_password("testpass123"),
+            full_name="Test Admin",
+            role="admin",
+        )
+        session.add(user)
+        session.commit()
+    user_id = user.id
+    session.close()
+
+    res = client.post("/api/auth/login", json={"username": "testadmin", "password": "testpass123"})
+    token = res.json()["token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture

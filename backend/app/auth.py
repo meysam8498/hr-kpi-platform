@@ -82,3 +82,34 @@ def require_manager_plus(user: User = Depends(get_current_user)) -> User:
     if user.role not in ("admin", "hr", "manager"):
         raise HTTPException(status_code=403, detail="دسترسی به این بخش برای شما مجاز نیست")
     return user
+
+
+# ─── Scope helpers (call inside route bodies) ─────────────────
+
+def is_hr_plus(user: User) -> bool:
+    return user.role in ("admin", "hr")
+
+
+def is_manager_plus(user: User) -> bool:
+    return user.role in ("admin", "hr", "manager")
+
+
+def ensure_team_scope(user: User, team_id) -> None:
+    """Managers may only act on their own team. admin/hr unrestricted."""
+    if user.role == "manager" and team_id is not None and user.team_id is not None:
+        if int(team_id) != int(user.team_id):
+            raise HTTPException(status_code=403, detail="فقط اعضای تیم خودتان در دسترس شماست")
+
+
+def ensure_employee_in_scope(user: User, employee: "Employee") -> None:
+    """Managers may only touch members of their own team."""
+    if user.role == "manager" and user.team_id is not None:
+        if employee.team_id is None or int(employee.team_id) != int(user.team_id):
+            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
+
+
+def ensure_own_employee(user: User, employee_id) -> None:
+    """Employees may only act on their own linked employee record."""
+    if user.role == "employee":
+        if user.employee_id is None or int(employee_id) != int(user.employee_id):
+            raise HTTPException(status_code=403, detail="فقط اطلاعات خودتان در دسترس شماست")

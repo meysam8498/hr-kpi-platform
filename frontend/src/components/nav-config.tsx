@@ -33,7 +33,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'اصلی',
     icon: LayoutDashboard,
     items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'داشبورد' },
+      { href: '/dashboard', icon: LayoutDashboard, label: 'داشبورد', roles: ['admin', 'hr', 'manager'] },
       { href: '/notifications', icon: Bell, label: 'اعلان‌ها' },
       { href: '/profile', icon: KeyRound, label: 'حساب کاربری' },
       { href: '/about', icon: Info, label: 'درباره برنامه' },
@@ -53,19 +53,21 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'مدیریت',
     icon: Building2,
+    roles: ['admin', 'hr', 'manager'],
     items: [
-      { href: '/teams', icon: Building2, label: 'تیم‌ها' },
-      { href: '/employees', icon: IdCard, label: 'کارمندان' },
-      { href: '/absences', icon: CalendarX, label: 'غیبت‌ها' },
+      { href: '/teams', icon: Building2, label: 'تیم‌ها', roles: ['admin', 'hr'] },
+      { href: '/employees', icon: IdCard, label: 'کارمندان', roles: ['admin', 'hr', 'manager'] },
+      { href: '/absences', icon: CalendarX, label: 'غیبت‌ها', roles: ['admin', 'hr', 'manager'] },
       { href: '/users', icon: UserCog, label: 'کاربران', roles: ['admin'] },
     ],
   },
   {
     label: 'گزارش‌ها',
     icon: BarChart3,
+    roles: ['admin', 'hr', 'manager'],
     items: [
       { href: '/hr', icon: HeartPulse, label: 'داشبورد منابع انسانی', roles: ['admin', 'hr'] },
-      { href: '/reports', icon: BarChart3, label: 'گزارش‌ها' },
+      { href: '/reports', icon: BarChart3, label: 'گزارش‌ها', roles: ['admin', 'hr', 'manager'] },
       { href: '/custom-reports', icon: SlidersHorizontal, label: 'گزارش سفارشی', roles: ['admin', 'hr', 'manager'] },
       { href: '/excel', icon: FileSpreadsheet, label: 'اکسل', roles: ['admin', 'hr', 'manager'] },
     ],

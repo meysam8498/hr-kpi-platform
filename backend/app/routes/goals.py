@@ -5,15 +5,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Goal, Employee, ReportingPeriod, KPIResult
+from ..models import Goal, Employee, ReportingPeriod, KPIResult, User
 from ..schemas import GoalCreate, GoalUpdate, GoalOut
+from ..auth import get_current_user, require_manager_plus, require_admin_or_hr
 
 router = APIRouter(prefix="/api/goals", tags=["Goals"])
 
 
 @router.get("/", response_model=list[GoalOut])
-def list_goals(employee_id: int = None, period_id: int = None, db: Session = Depends(get_db)):
+def list_goals(employee_id: int = None, period_id: int = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Employees see only their own goals."""
     query = db.query(Goal)
+    if user.role == "employee":
+        if user.employee_id is None:
+            return []
+        query = query.filter(Goal.employee_id == user.employee_id)
     if employee_id:
         query = query.filter(Goal.employee_id == employee_id)
     if period_id:
@@ -37,7 +43,7 @@ def list_goals(employee_id: int = None, period_id: int = None, db: Session = Dep
 
 
 @router.post("/", response_model=GoalOut, status_code=201)
-def create_goal(request: GoalCreate, db: Session = Depends(get_db)):
+def create_goal(request: GoalCreate, db: Session = Depends(get_db), _: User = Depends(require_manager_plus)):
     emp = db.query(Employee).filter(Employee.id == request.employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
@@ -62,7 +68,7 @@ def create_goal(request: GoalCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{goal_id}", response_model=GoalOut)
-def update_goal(goal_id: int, request: GoalUpdate, db: Session = Depends(get_db)):
+def update_goal(goal_id: int, request: GoalUpdate, db: Session = Depends(get_db), _: User = Depends(require_manager_plus)):
     goal = db.query(Goal).filter(Goal.id == goal_id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="هدف یافت نشد")
@@ -87,7 +93,7 @@ def update_goal(goal_id: int, request: GoalUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{goal_id}")
-def delete_goal(goal_id: int, db: Session = Depends(get_db)):
+def delete_goal(goal_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     goal = db.query(Goal).filter(Goal.id == goal_id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="هدف یافت نشد")

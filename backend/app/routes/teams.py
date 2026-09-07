@@ -1,5 +1,8 @@
 """
-Team management routes — no auth required.
+Team management routes.
+
+Read: any authenticated user (needed for filters).
+Create / update / delete: admin or HR only.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -8,12 +11,14 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Team, Employee
 from ..schemas import TeamCreate, TeamUpdate, TeamOut
+from ..auth import get_current_user, require_admin_or_hr
+from ..models import User
 
 router = APIRouter(prefix="/api/teams", tags=["Teams"])
 
 
 @router.get("/", response_model=list[TeamOut])
-def list_teams(db: Session = Depends(get_db)):
+def list_teams(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     teams = db.query(Team).all()
     result = []
     for t in teams:
@@ -26,7 +31,7 @@ def list_teams(db: Session = Depends(get_db)):
 
 
 @router.get("/{team_id}", response_model=TeamOut)
-def get_team(team_id: int, db: Session = Depends(get_db)):
+def get_team(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -38,7 +43,7 @@ def get_team(team_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=TeamOut, status_code=201)
-def create_team(request: TeamCreate, db: Session = Depends(get_db)):
+def create_team(request: TeamCreate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     existing = db.query(Team).filter(Team.name == request.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="نام تیم تکراری است")
@@ -50,7 +55,7 @@ def create_team(request: TeamCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{team_id}", response_model=TeamOut)
-def update_team(team_id: int, request: TeamUpdate, db: Session = Depends(get_db)):
+def update_team(team_id: int, request: TeamUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -64,7 +69,7 @@ def update_team(team_id: int, request: TeamUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{team_id}")
-def delete_team(team_id: int, db: Session = Depends(get_db)):
+def delete_team(team_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")

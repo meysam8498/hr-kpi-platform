@@ -32,10 +32,24 @@ def list_employees(
     team_id: int = None,
     archived: bool = False,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    """List employees. By default only active (non-archived)."""
+    """List employees. By default only active (non-archived).
+
+    Scope: employees and managers see their own team only;
+    admin/HR see everyone.
+    """
     query = db.query(Employee)
-    if team_id:
+    if user.role == "employee":
+        if user.team_id is not None:
+            query = query.filter(Employee.team_id == user.team_id)
+        elif user.employee_id is not None:
+            query = query.filter(Employee.id == user.employee_id)
+        else:
+            return []
+    elif user.role == "manager" and user.team_id is not None:
+        query = query.filter(Employee.team_id == user.team_id)
+    elif team_id:
         query = query.filter(Employee.team_id == team_id)
     if not archived:
         query = query.filter(Employee.is_archived == False)
@@ -50,17 +64,27 @@ def list_employees(
 def list_all_employees(
     team_id: int = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    """List ALL employees including archived."""
+    """List ALL employees including archived (same role scoping)."""
     query = db.query(Employee)
-    if team_id:
+    if user.role == "employee":
+        if user.team_id is not None:
+            query = query.filter(Employee.team_id == user.team_id)
+        elif user.employee_id is not None:
+            query = query.filter(Employee.id == user.employee_id)
+        else:
+            return []
+    elif user.role == "manager" and user.team_id is not None:
+        query = query.filter(Employee.team_id == user.team_id)
+    elif team_id:
         query = query.filter(Employee.team_id == team_id)
     employees = query.order_by(Employee.employee_code).all()
     return [_emp_out(e, db) for e in employees]
 
 
 @router.get("/import-template")
-def download_import_template():
+def download_import_template(_: User = Depends(require_admin_or_hr)):
     """Download the sample Excel template for bulk employee import.
     Same column format as the real HR file: ردیف | شماره پرسنلی | نام |
     نام خانوادگی | واحد | سمت سازمانی | تاریخ استخدام (شمسی) | شماره همراه.
@@ -112,15 +136,19 @@ def download_import_template():
 
 
 @router.get("/{emp_id}", response_model=EmployeeOut)
-def get_employee(emp_id: int, db: Session = Depends(get_db)):
+def get_employee(emp_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
+    if user.role == "employee" and (user.employee_id is None or int(emp_id) != int(user.employee_id)):
+        raise HTTPException(status_code=403, detail="فقط اطلاعات خودتان در دسترس شماست")
+    if user.role == "manager" and user.team_id is not None and emp.team_id != user.team_id:
+        raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
     return _emp_out(emp, db)
 
 
 @router.post("/", response_model=EmployeeOut, status_code=201)
-def create_employee(request: EmployeeCreate, db: Session = Depends(get_db)):
+def create_employee(request: EmployeeCreate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     existing = db.query(Employee).filter(Employee.employee_code == request.employee_code).first()
     if existing:
         raise HTTPException(status_code=400, detail="کد پرسنلی تکراری است")
@@ -160,7 +188,7 @@ def update_employee(emp_id: int, request: EmployeeUpdate, db: Session = Depends(
 
 
 @router.put("/{emp_id}/transfer", response_model=EmployeeOut)
-def transfer_employee(emp_id: int, new_team_id: int, db: Session = Depends(get_db)):
+def transfer_employee(emp_id: int, new_team_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Transfer an employee to a different team."""
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
@@ -179,7 +207,7 @@ def transfer_employee(emp_id: int, new_team_id: int, db: Session = Depends(get_d
 
 
 @router.put("/{emp_id}/archive", response_model=EmployeeOut)
-def archive_employee(emp_id: int, db: Session = Depends(get_db)):
+def archive_employee(emp_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Archive an employee (hide from active views)."""
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
@@ -193,7 +221,7 @@ def archive_employee(emp_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{emp_id}/unarchive", response_model=EmployeeOut)
-def unarchive_employee(emp_id: int, db: Session = Depends(get_db)):
+def unarchive_employee(emp_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Restore an archived employee."""
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
@@ -242,7 +270,7 @@ def delete_employee(emp_id: int, db: Session = Depends(get_db), _: User = Depend
 # ──────────────────────────────────────────────
 
 @router.post("/import-json", response_model=BulkImportResult)
-def bulk_import_json(items: list[BulkImportItem], db: Session = Depends(get_db)):
+def bulk_import_json(items: list[BulkImportItem], db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Bulk import employees from a JSON list (team by id)."""
     created = 0
     skipped = []
@@ -270,7 +298,7 @@ def bulk_import_json(items: list[BulkImportItem], db: Session = Depends(get_db))
 
 
 @router.post("/import-json-by-name", response_model=BulkImportResult)
-def bulk_import_json_by_name(items: list[BulkImportItemByName], db: Session = Depends(get_db)):
+def bulk_import_json_by_name(items: list[BulkImportItemByName], db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Bulk import employees from a JSON list — team referenced by *name*;
     missing teams are created automatically. Hire date accepts Jalali
     (yyyy/mm/dd) or Gregorian (yyyy-mm-dd)."""
@@ -327,7 +355,7 @@ def bulk_import_json_by_name(items: list[BulkImportItemByName], db: Session = De
 
 
 @router.post("/import-excel", response_model=BulkImportResult)
-async def bulk_import_excel(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def bulk_import_excel(file: UploadFile = File(...), db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """
     Bulk import employees from an Excel file — tolerant real-world parser:
       • Header row auto-detected (first non-empty row), columns matched by

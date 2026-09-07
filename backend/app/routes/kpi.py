@@ -11,7 +11,11 @@ from ..database import get_db
 from ..models import (
     Employee, Team, KPICriterion, TeamKPIConfig,
     KPIEntry, KPIResult, ReportingPeriod, CriterionCategory, TeamScoreBlend,
-    SelfEvaluation,
+    SelfEvaluation, User,
+)
+from ..auth import (
+    get_current_user, require_admin_or_hr, require_manager_plus,
+    ensure_team_scope, ensure_employee_in_scope, ensure_own_employee, is_hr_plus,
 )
 from ..schemas import (
     KPICriterionCreate, KPICriterionUpdate, KPICriterionOut,
@@ -35,7 +39,7 @@ router = APIRouter(prefix="/api/kpi", tags=["KPI Management"])
 # ──────────────────────────────────────────────
 
 @router.get("/criteria", response_model=list[KPICriterionOut])
-def list_criteria(category: str = None, db: Session = Depends(get_db)):
+def list_criteria(category: str = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     query = db.query(KPICriterion).filter(KPICriterion.is_active == True)
     if category:
         query = query.filter(KPICriterion.category == category)
@@ -43,7 +47,7 @@ def list_criteria(category: str = None, db: Session = Depends(get_db)):
 
 
 @router.post("/criteria", response_model=KPICriterionOut, status_code=201)
-def create_criterion(request: KPICriterionCreate, db: Session = Depends(get_db)):
+def create_criterion(request: KPICriterionCreate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     existing = db.query(KPICriterion).filter(KPICriterion.name == request.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="نام معیار تکراری است")
@@ -61,7 +65,7 @@ def create_criterion(request: KPICriterionCreate, db: Session = Depends(get_db))
 
 
 @router.put("/criteria/{crit_id}", response_model=KPICriterionOut)
-def update_criterion(crit_id: int, request: KPICriterionUpdate, db: Session = Depends(get_db)):
+def update_criterion(crit_id: int, request: KPICriterionUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     criterion = db.query(KPICriterion).filter(KPICriterion.id == crit_id).first()
     if not criterion:
         raise HTTPException(status_code=404, detail="معیار یافت نشد")
@@ -76,7 +80,7 @@ def update_criterion(crit_id: int, request: KPICriterionUpdate, db: Session = De
 
 
 @router.delete("/criteria/{crit_id}")
-def delete_criterion(crit_id: int, db: Session = Depends(get_db)):
+def delete_criterion(crit_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     criterion = db.query(KPICriterion).filter(KPICriterion.id == crit_id).first()
     if not criterion:
         raise HTTPException(status_code=404, detail="معیار یافت نشد")
@@ -92,7 +96,7 @@ def delete_criterion(crit_id: int, db: Session = Depends(get_db)):
 # ──────────────────────────────────────────────
 
 @router.get("/teams/{team_id}/config", response_model=list[TeamKPIConfigOut])
-def get_team_config(team_id: int, db: Session = Depends(get_db)):
+def get_team_config(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     configs = db.query(TeamKPIConfig).filter(TeamKPIConfig.team_id == team_id).all()
     result = []
     for cfg in configs:
@@ -107,7 +111,7 @@ def get_team_config(team_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/teams/{team_id}/config", response_model=TeamKPIConfigOut, status_code=201)
-def add_team_config(team_id: int, request: TeamKPIConfigCreate, db: Session = Depends(get_db)):
+def add_team_config(team_id: int, request: TeamKPIConfigCreate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -134,7 +138,7 @@ def add_team_config(team_id: int, request: TeamKPIConfigCreate, db: Session = De
 
 
 @router.put("/teams/{team_id}/config/{config_id}", response_model=TeamKPIConfigOut)
-def update_team_config(team_id: int, config_id: int, request: TeamKPIConfigUpdate, db: Session = Depends(get_db)):
+def update_team_config(team_id: int, config_id: int, request: TeamKPIConfigUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     config = db.query(TeamKPIConfig).filter(
         TeamKPIConfig.id == config_id, TeamKPIConfig.team_id == team_id
     ).first()
@@ -155,7 +159,7 @@ def update_team_config(team_id: int, config_id: int, request: TeamKPIConfigUpdat
 
 
 @router.delete("/teams/{team_id}/config/{config_id}")
-def remove_team_config(team_id: int, config_id: int, db: Session = Depends(get_db)):
+def remove_team_config(team_id: int, config_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     config = db.query(TeamKPIConfig).filter(
         TeamKPIConfig.id == config_id, TeamKPIConfig.team_id == team_id
     ).first()
@@ -173,7 +177,7 @@ def remove_team_config(team_id: int, config_id: int, db: Session = Depends(get_d
 # ──────────────────────────────────────────────
 
 @router.get("/teams/{team_id}/blend", response_model=TeamScoreBlendOut)
-def get_team_blend(team_id: int, db: Session = Depends(get_db)):
+def get_team_blend(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -189,7 +193,7 @@ def get_team_blend(team_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/teams/{team_id}/blend", response_model=TeamScoreBlendOut)
-def set_team_blend(team_id: int, request: TeamScoreBlendUpdate, db: Session = Depends(get_db)):
+def set_team_blend(team_id: int, request: TeamScoreBlendUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -221,12 +225,12 @@ def set_team_blend(team_id: int, request: TeamScoreBlendUpdate, db: Session = De
 # ──────────────────────────────────────────────
 
 @router.get("/periods", response_model=list[ReportingPeriodOut])
-def list_periods(db: Session = Depends(get_db)):
+def list_periods(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return db.query(ReportingPeriod).order_by(ReportingPeriod.start_date.desc()).all()
 
 
 @router.post("/periods", response_model=ReportingPeriodOut, status_code=201)
-def create_period(request: ReportingPeriodCreate, db: Session = Depends(get_db)):
+def create_period(request: ReportingPeriodCreate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     period = ReportingPeriod(
         name=request.name, period_type=request.period_type,
         start_date=request.start_date, end_date=request.end_date,
@@ -240,7 +244,7 @@ def create_period(request: ReportingPeriodCreate, db: Session = Depends(get_db))
 
 
 @router.put("/periods/{period_id}", response_model=ReportingPeriodOut)
-def update_period(period_id: int, request: ReportingPeriodUpdate, db: Session = Depends(get_db)):
+def update_period(period_id: int, request: ReportingPeriodUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     period = db.query(ReportingPeriod).filter(ReportingPeriod.id == period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="دوره یافت نشد")
@@ -258,7 +262,7 @@ def update_period(period_id: int, request: ReportingPeriodUpdate, db: Session = 
 
 
 @router.delete("/periods/{period_id}")
-def delete_period(period_id: int, db: Session = Depends(get_db)):
+def delete_period(period_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Delete a period and everything attached to it (scores, results, goals,
     peer reviews, self-evaluations, PIPs). Intended for removing test periods."""
     from ..models import KPIEntry, KPIResult, Goal, PeerReview, SelfEvaluation
@@ -290,8 +294,16 @@ def delete_period(period_id: int, db: Session = Depends(get_db)):
 # ──────────────────────────────────────────────
 
 @router.get("/entries", response_model=list[KPIEntryOut])
-def list_entries(employee_id: int = None, period_id: int = None, db: Session = Depends(get_db)):
+def list_entries(employee_id: int = None, period_id: int = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     query = db.query(KPIEntry)
+    # Employees may only see their own entries; managers only their team's
+    if user.role == "employee":
+        if user.employee_id is None:
+            return []
+        query = query.filter(KPIEntry.employee_id == user.employee_id)
+    elif user.role == "manager" and user.team_id is not None:
+        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id == user.team_id).all()]
+        query = query.filter(KPIEntry.employee_id.in_(team_emp_ids))
     if employee_id:
         query = query.filter(KPIEntry.employee_id == employee_id)
     if period_id:
@@ -314,11 +326,14 @@ def list_entries(employee_id: int = None, period_id: int = None, db: Session = D
 
 
 @router.post("/entries/batch")
-def batch_score(employee_id: int, period_id: int, scores: list[KPIScoreItem], db: Session = Depends(get_db)):
-    """Batch score: submit all criteria scores for one employee."""
+def batch_score(employee_id: int, period_id: int, scores: list[KPIScoreItem], db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
+    """Batch score: submit all criteria scores for one employee.
+    Managers are restricted to members of their own team."""
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
+    if user.role == "manager" and user.team_id is not None and employee.team_id != user.team_id:
+        raise HTTPException(status_code=403, detail="فقط می‌توانید به اعضای تیم خودتان نمره بدهید")
     period = db.query(ReportingPeriod).filter(ReportingPeriod.id == period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="دوره یافت نشد")
@@ -360,8 +375,10 @@ def batch_score(employee_id: int, period_id: int, scores: list[KPIScoreItem], db
 # ──────────────────────────────────────────────
 
 @router.get("/export/{team_id}/{period_id}")
-def export_excel(team_id: int, period_id: int, db: Session = Depends(get_db)):
+def export_excel(team_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     """Download Excel scoring sheet for a team."""
+    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+        raise HTTPException(status_code=403, detail="فقط فایل اکسل تیم خودتان در دسترس شماست")
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -386,8 +403,10 @@ def export_excel(team_id: int, period_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/import/{team_id}/{period_id}")
-async def import_excel(team_id: int, period_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def import_excel(team_id: int, period_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     """Upload filled Excel scoring sheet to update scores."""
+    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+        raise HTTPException(status_code=403, detail="فقط فایل اکسل تیم خودتان مجاز است")
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -406,12 +425,14 @@ async def import_excel(team_id: int, period_id: int, file: UploadFile = File(...
 # ──────────────────────────────────────────────
 
 @router.post("/calculate/company/{period_id}")
-def calculate_company(period_id: int, db: Session = Depends(get_db)):
+def calculate_company(period_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     return calculate_company_results(period_id, db)
 
 
 @router.post("/calculate/team/{team_id}/{period_id}")
-def calculate_team(team_id: int, period_id: int, db: Session = Depends(get_db)):
+def calculate_team(team_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
+    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+        raise HTTPException(status_code=403, detail="فقط محاسبه تیم خودتان مجاز است")
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -420,7 +441,11 @@ def calculate_team(team_id: int, period_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/calculate/{employee_id}/{period_id}", response_model=KPIResultOut)
-def calculate_employee(employee_id: int, period_id: int, db: Session = Depends(get_db)):
+def calculate_employee(employee_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
+    if user.role == "manager":
+        emp = db.query(Employee).filter(Employee.id == employee_id).first()
+        if emp and user.team_id is not None and emp.team_id != user.team_id:
+            raise HTTPException(status_code=403, detail="فقط اعضای تیم خودتان مجاز است")
     result = calculate_and_store(employee_id, period_id, db)
     if result is None:
         raise HTTPException(status_code=400, detail="تنظیمات KPI برای تیم یافت نشد")
@@ -439,7 +464,15 @@ def calculate_employee(employee_id: int, period_id: int, db: Session = Depends(g
 
 
 @router.get("/results/{employee_id}", response_model=list[KPIResultOut])
-def get_employee_results(employee_id: int, db: Session = Depends(get_db)):
+def get_employee_results(employee_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """KPI results — employees see ONLY their own; managers see their team; admin/HR all."""
+    if user.role == "employee":
+        if user.employee_id is None or int(employee_id) != int(user.employee_id):
+            raise HTTPException(status_code=403, detail="فقط نتایج خودتان در دسترس شماست")
+    elif user.role == "manager":
+        emp = db.query(Employee).filter(Employee.id == employee_id).first()
+        if emp and user.team_id is not None and emp.team_id != user.team_id:
+            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
     results = db.query(KPIResult).filter(KPIResult.employee_id == employee_id).all()
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
     team = db.query(Team).filter(Team.id == emp.team_id).first() if emp else None
@@ -458,12 +491,21 @@ def get_employee_results(employee_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/history/{employee_id}")
-def employee_history(employee_id: int, db: Session = Depends(get_db)):
+def employee_history(employee_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role == "employee":
+        if user.employee_id is None or int(employee_id) != int(user.employee_id):
+            raise HTTPException(status_code=403, detail="فکت تاریخچه خودتان در دسترس شماست")
+    elif user.role == "manager":
+        emp = db.query(Employee).filter(Employee.id == employee_id).first()
+        if emp and user.team_id is not None and emp.team_id != user.team_id:
+            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
     return get_employee_history(employee_id, db)
 
 
 @router.get("/reports/team/{team_id}/{period_id}")
-def team_report(team_id: int, period_id: int, db: Session = Depends(get_db)):
+def team_report(team_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
+    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+        raise HTTPException(status_code=403, detail="فقط گزارش تیم خودتان در دسترس شماست")
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="تیم یافت نشد")
@@ -490,13 +532,17 @@ def team_report(team_id: int, period_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/reports/company/{period_id}")
-def company_report(period_id: int, db: Session = Depends(get_db)):
+def company_report(period_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     return calculate_company_results(period_id, db)
 
 
 @router.get("/compare/{employee_id}/{period_a}/{period_b}")
-def compare_periods(employee_id: int, period_a: int, period_b: int, db: Session = Depends(get_db)):
+def compare_periods(employee_id: int, period_a: int, period_b: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     """Side-by-side comparison of one employee across two periods."""
+    if user.role == "manager":
+        emp = db.query(Employee).filter(Employee.id == employee_id).first()
+        if emp and user.team_id is not None and emp.team_id != user.team_id:
+            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
@@ -580,7 +626,7 @@ def _compute_cutoff() -> date:
     return date(y, m, d)
 
 @router.post("/periods/auto-archive")
-def auto_archive_periods(db: Session = Depends(get_db)):
+def auto_archive_periods(db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Archive periods where end_date is more than 3 months ago."""
     cutoff = _compute_cutoff()
     expired = db.query(ReportingPeriod).filter(

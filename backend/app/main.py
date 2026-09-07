@@ -18,6 +18,7 @@ from .models import Team, Employee, KPICriterion, TeamKPIConfig, ReportingPeriod
 from .routes import (
     teams, employees, kpi, pips, self_evaluations, custom_reports,
     notifications, goals, hr_analytics, absences, peer_reviews, audit, backup, auth,
+    pdf_reports,
 )
 
 
@@ -213,6 +214,7 @@ app.include_router(absences.router)
 app.include_router(peer_reviews.router)
 app.include_router(audit.router)
 app.include_router(backup.router)
+app.include_router(pdf_reports.router)
 
 
 @app.get("/")

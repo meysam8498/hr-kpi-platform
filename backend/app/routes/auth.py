@@ -73,6 +73,24 @@ def me(user: User = Depends(get_current_user)):
     return user
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=4, max_length=128)
+
+
+@router.post("/change-password")
+def change_password(request: ChangePasswordRequest, db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user)):
+    """Any logged-in user changes their own password (old password required)."""
+    if not verify_password(request.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="رمز عبور فعلی اشتباه است")
+    if request.current_password == request.new_password:
+        raise HTTPException(status_code=422, detail="رمز جدید باید با رمز فعلی متفاوت باشد")
+    user.password_hash = hash_password(request.new_password)
+    db.commit()
+    return {"message": "رمز عبور با موفقیت تغییر کرد"}
+
+
 # ─── User management (admin) ─────────────────────────────────
 
 @router.get("/users", response_model=list[UserOut])

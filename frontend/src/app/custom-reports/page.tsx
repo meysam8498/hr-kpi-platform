@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Building2, Users, CalendarDays, ListChecks, Filter, BarChart3 } from 'lucide-react'
+import { Search, Building2, Users, CalendarDays, ListChecks, Filter, BarChart3, Download } from 'lucide-react'
 import AppLayout from '@/components/Layout'
-import { teamsApi, employeesApi, kpiApi, customReportApi } from '@/lib/api'
+import JalaliDatePicker from '@/components/JalaliDatePicker'
+import { teamsApi, employeesApi, kpiApi, customReportApi, authApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod, KPICriterion } from '@/lib/api'
 
 export default function CustomReportsPage() {
@@ -22,7 +23,11 @@ export default function CustomReportsPage() {
     criteria_ids: [] as number[],
     min_score: undefined as number | undefined,
     max_score: undefined as number | undefined,
+    date_from: '' as string,
+    date_to: '' as string,
   })
+  const [exporting, setExporting] = useState(false)
+  const [exportMsg, setExportMsg] = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -64,8 +69,36 @@ export default function CustomReportsPage() {
     setFilters({
       team_id: undefined, employee_ids: [], period_ids: [],
       criteria_ids: [], min_score: undefined, max_score: undefined,
+      date_from: '', date_to: '',
     })
     setReport(null)
+  }
+
+  const exportExcel = async () => {
+    setExporting(true)
+    setExportMsg('')
+    try {
+      await authApi.downloadFile(
+        customReportApi.exportUrl,
+        'POST',
+        {
+          team_id: filters.team_id,
+          employee_ids: filters.employee_ids.length > 0 ? filters.employee_ids : undefined,
+          period_ids: filters.period_ids.length > 0 ? filters.period_ids : undefined,
+          criteria_ids: filters.criteria_ids.length > 0 ? filters.criteria_ids : undefined,
+          min_score: filters.min_score,
+          max_score: filters.max_score,
+          date_from: filters.date_from || undefined,
+          date_to: filters.date_to || undefined,
+        },
+        'custom-report.xlsx',
+      )
+      setExportMsg('خروجی اکسل دانلود شد')
+    } catch (e) {
+      setExportMsg((e as Error).message || 'خطا در خروجی اکسل')
+    } finally {
+      setExporting(false)
+    }
   }
 
   if (loading) return <AppLayout><div className="flex items-center justify-center py-32"><div className="inline-block w-10 h-10 border-3 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--border-primary)', borderTopColor: 'transparent' }} /></div></AppLayout>
@@ -151,6 +184,16 @@ export default function CustomReportsPage() {
             </div>
           </div>
 
+          {/* Date Range (Jalali) */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-bold mb-2" style={{ color: 'var(--text-secondary)' }}><CalendarDays size={15} /> بازه تاریخ شروع دوره (شمسی)</label>
+            <div className="grid grid-cols-2 gap-4">
+              <JalaliDatePicker value={filters.date_from} onChange={v => setFilters(prev => ({ ...prev, date_from: v }))} placeholder="از تاریخ — ۱۴۰۴/۰۱/۰۱" />
+              <JalaliDatePicker value={filters.date_to} onChange={v => setFilters(prev => ({ ...prev, date_to: v }))} placeholder="تا تاریخ — ۱۴۰۵/۱۲/۲۹" />
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>دوره‌هایی که تاریخ شروعشان در این بازه است گزارش می‌شوند</div>
+          </div>
+
           {/* Score Range */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -168,8 +211,12 @@ export default function CustomReportsPage() {
             <button onClick={generate} disabled={generating} className="premium-btn btn-primary flex-1 justify-center">
               {generating ? 'در حال تولید...' : (<><Filter size={15} /> تولید گزارش</>)}
             </button>
+            <button onClick={exportExcel} disabled={exporting || !report} className="premium-btn btn-ghost justify-center" title="خروجی اکسل از گزارش فعلی">
+              {exporting ? 'در حال تهیه...' : (<><Download size={15} /> خروجی اکسل</>)}
+            </button>
             <button onClick={clearFilters} className="premium-btn btn-ghost">پاک کردن فیلترها</button>
           </div>
+          {exportMsg && <div className="text-xs font-bold" style={{ color: 'var(--accent-success)' }}>{exportMsg}</div>}
         </div>
 
         {/* Report Results */}

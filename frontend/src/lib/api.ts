@@ -217,6 +217,10 @@ export const kpiApi = {
     request(`/api/kpi/calculate/company/${periodId}`, { method: 'POST' }),
 
   employeeResults: (empId: number) => request<KPIResult[]>(`/api/kpi/results/${empId}`),
+  comparePeriods: (empId: number, periodA: number, periodB: number) =>
+    request<PeriodCompare>(`/api/kpi/compare/${empId}/${periodA}/${periodB}`),
+  pdfEmployeeUrl: (empId: number, periodId: number) => `${API_BASE}/api/pdf/employee/${empId}/${periodId}`,
+  pdfTeamUrl: (teamId: number, periodId: number) => `${API_BASE}/api/pdf/team/${teamId}/${periodId}`,
   teamReport: (teamId: number, periodId: number) =>
     request<Record<string, unknown>>(`/api/kpi/reports/team/${teamId}/${periodId}`),
   companyReport: (periodId: number) =>
@@ -309,8 +313,11 @@ export const selfEvalApi = {
 export const customReportApi = {
   generate: (data: {
     team_id?: number; employee_ids?: number[]; period_ids?: number[];
-    criteria_ids?: number[]; min_score?: number; max_score?: number
+    criteria_ids?: number[]; min_score?: number; max_score?: number;
+    date_from?: string; date_to?: string
   }) => request<Record<string, unknown>>('/api/reports/custom', { method: 'POST', json: data }),
+  // POST with JSON body but returns a binary Excel — use raw fetch with the auth token
+  exportUrl: '/api/reports/custom/export',
 }
 
 // ─── HR Analytics API ───
@@ -569,6 +576,23 @@ export const auditApi = {
   },
 }
 
+// ─── Period Compare ───
+export interface PeriodCompare {
+  employee: { id: number; name: string; code: string; position: string }
+  period_a: {
+    period_id: number; period_name: string; start_date: string; end_date: string
+    final_score: number | null; breakdown: Record<string, unknown> | null
+    entries: { criterion_id: number; criterion_name: string; score: number }[]
+    self_score: number | null
+  }
+  period_b: PeriodCompare['period_a']
+  final_delta: number | null
+  criterion_diffs: {
+    criterion_id: number; criterion_name: string
+    score_a: number | null; score_b: number | null; delta: number | null
+  }[]
+}
+
 // ─── Backup API ───
 export const backupApi = {
   info: () => request<{ database_path: string; size_bytes: number; size_mb: number; last_modified: string }>('/api/backup/info'),
@@ -582,5 +606,49 @@ export const backupApi = {
       throw new Error(body.detail || 'خطا در بازیابی')
     }
     return res.json()
+  },
+}
+
+// ─── Auth: change own password ───
+export const authApi = {
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth-token') : null
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    })
+    const body = await res.json().catch(() => ({ detail: 'خطا در تغییر رمز عبور' }))
+    if (!res.ok) throw new Error(body.detail || 'خطا در تغییر رمز عبور')
+    return body as { message: string }
+  },
+  // Generic authenticated download (PDF / Excel with JSON POST body)
+  downloadFile: async (path: string, method: 'GET' | 'POST' = 'GET', json?: unknown, fallbackName = 'report.pdf') => {
+    const headers: Record<string, string> = {}
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth-token') : null
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    if (json) headers['Content-Type'] = 'application/json'
+    const res = await fetch(`${API_BASE}${path}`, { method, headers, body: json ? JSON.stringify(json) : undefined })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ detail: 'خطا در دریافت فایل' }))
+      throw new Error(body.detail || 'خطا در دریافت فایل')
+    }
+    const blob = await res.blob()
+    const cd = res.headers.get('Content-Disposition') || ''
+    const utf8Match = cd.match(/filename\*=UTF-8''([^;]+)/)
+    const plainMatch = cd.match(/filename=([^;]+)/)
+    let filename = fallbackName
+    if (utf8Match) filename = decodeURIComponent(utf8Match[1])
+    else if (plainMatch) filename = plainMatch[1].trim()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
   },
 }

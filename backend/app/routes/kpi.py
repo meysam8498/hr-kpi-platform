@@ -11,6 +11,7 @@ from ..database import get_db
 from ..models import (
     Employee, Team, KPICriterion, TeamKPIConfig,
     KPIEntry, KPIResult, ReportingPeriod, CriterionCategory, TeamScoreBlend,
+    SelfEvaluation,
 )
 from ..schemas import (
     KPICriterionCreate, KPICriterionUpdate, KPICriterionOut,
@@ -491,6 +492,72 @@ def team_report(team_id: int, period_id: int, db: Session = Depends(get_db)):
 @router.get("/reports/company/{period_id}")
 def company_report(period_id: int, db: Session = Depends(get_db)):
     return calculate_company_results(period_id, db)
+
+
+@router.get("/compare/{employee_id}/{period_a}/{period_b}")
+def compare_periods(employee_id: int, period_a: int, period_b: int, db: Session = Depends(get_db)):
+    """Side-by-side comparison of one employee across two periods."""
+    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="کارمند یافت نشد")
+
+    def period_data(pid: int):
+        period = db.query(ReportingPeriod).filter(ReportingPeriod.id == pid).first()
+        if not period:
+            raise HTTPException(status_code=404, detail=f"دوره {pid} یافت نشد")
+        result = db.query(KPIResult).filter(
+            KPIResult.employee_id == employee_id, KPIResult.period_id == pid
+        ).first()
+        entries = db.query(KPIEntry).filter(
+            KPIEntry.employee_id == employee_id, KPIEntry.period_id == pid
+        ).all()
+        crit_names = {}
+        if entries:
+            crit_ids = {e.criterion_id for e in entries}
+            crit_names = {c.id: c.name for c in db.query(KPICriterion).filter(KPICriterion.id.in_(crit_ids)).all()}
+        self_eval = db.query(SelfEvaluation).filter(
+            SelfEvaluation.employee_id == employee_id, SelfEvaluation.period_id == pid
+        ).first()
+        return {
+            "period_id": pid,
+            "period_name": period.name,
+            "start_date": str(period.start_date),
+            "end_date": str(period.end_date),
+            "final_score": result.final_score if result else None,
+            "breakdown": result.breakdown if result else None,
+            "entries": [{
+                "criterion_id": e.criterion_id,
+                "criterion_name": crit_names.get(e.criterion_id, "—"),
+                "score": e.score,
+            } for e in entries],
+            "self_score": self_eval.self_score if self_eval else None,
+        }
+
+    pa = period_data(period_a)
+    pb = period_data(period_b)
+
+    # Criterion-level diff (matched by criterion id)
+    a_map = {e["criterion_id"]: e for e in pa["entries"]}
+    b_map = {e["criterion_id"]: e for e in pb["entries"]}
+    diffs = []
+    for cid in sorted(set(a_map) | set(b_map)):
+        a_e, b_e = a_map.get(cid), b_map.get(cid)
+        diffs.append({
+            "criterion_id": cid,
+            "criterion_name": (a_e or b_e)["criterion_name"],
+            "score_a": a_e["score"] if a_e else None,
+            "score_b": b_e["score"] if b_e else None,
+            "delta": (b_e["score"] - a_e["score"]) if (a_e and b_e) else None,
+        })
+
+    delta = (pb["final_score"] - pa["final_score"]) if (pa["final_score"] is not None and pb["final_score"] is not None) else None
+    return {
+        "employee": {"id": emp.id, "name": emp.full_name, "code": emp.employee_code,
+                     "position": emp.position},
+        "period_a": pa, "period_b": pb,
+        "final_delta": delta,
+        "criterion_diffs": diffs,
+    }
 
 
 # ──────────────────────────────────────────────

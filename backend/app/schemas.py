@@ -377,6 +377,9 @@ class CustomReportRequest(BaseModel):
     criteria_ids: Optional[list[int]] = None
     min_score: Optional[float] = None
     max_score: Optional[float] = None
+    # Jalali date range (yyyy/mm/dd or yyyy-mm-dd) — filters periods by start_date
+    date_from: Optional[str] = None
+    date_to: Optional[str] = None
 
 
 # ──────────────────────────────────────────────

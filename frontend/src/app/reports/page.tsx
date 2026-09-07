@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import HeadIcon from '@/components/HeadIcon'
 import AppLayout from '@/components/Layout'
-import { teamsApi, employeesApi, kpiApi, goalsApi } from '@/lib/api'
-import type { Team, Employee, ReportingPeriod, Goal } from '@/lib/api'
+import { teamsApi, employeesApi, kpiApi, goalsApi, authApi } from '@/lib/api'
+import type { Team, Employee, ReportingPeriod, Goal, PeriodCompare } from '@/lib/api'
 import { toPersianNums } from '@/lib/jalali'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar } from 'recharts'
-import { Printer, UserRound, ClipboardList, PieChart, ListChecks, Info } from 'lucide-react'
+import { Printer, UserRound, ClipboardList, PieChart, ListChecks, Info, FileDown, GitCompareArrows } from 'lucide-react'
 import { ScorePill, EmptyState, Avatar, TableSkeleton } from '@/components/ui'
 
 /* ─── Score breakdown popover — «این عدد از کجا آمد؟» ─── */
@@ -84,8 +84,16 @@ export default function ReportsPage() {
   const [teamReport, setTeamReport] = useState<any>(null)
   const [empResults, setEmpResults] = useState<any[]>([])
   const [empGoals, setEmpGoals] = useState<Goal[]>([])
-  const [view, setView] = useState<'team' | 'employee'>('team')
+  const [view, setView] = useState<'team' | 'employee' | 'compare'>('team')
   const [loading, setLoading] = useState(true)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+
+  // Compare mode state
+  const [cmpEmp, setCmpEmp] = useState<number>(0)
+  const [cmpPeriodA, setCmpPeriodA] = useState<number>(0)
+  const [cmpPeriodB, setCmpPeriodB] = useState<number>(0)
+  const [compare, setCompare] = useState<PeriodCompare | null>(null)
+  const [cmpLoading, setCmpLoading] = useState(false)
 
   useEffect(() => {
     Promise.all([teamsApi.list(), employeesApi.list(), kpiApi.listPeriods()]).then(([t, e, p]) => {
@@ -118,8 +126,34 @@ export default function ReportsPage() {
   }
 
   useEffect(() => {
-    if (view === 'team') loadTeamReport(); else loadEmpReport()
+    if (view === 'team') loadTeamReport(); else if (view === 'employee') loadEmpReport()
   }, [view, selectedTeam, selectedPeriod, selectedEmp]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadCompare = async () => {
+    if (!cmpEmp || !cmpPeriodA || !cmpPeriodB) { setCompare(null); return }
+    setCmpLoading(true)
+    try {
+      setCompare(await kpiApi.comparePeriods(cmpEmp, cmpPeriodA, cmpPeriodB))
+    } catch { setCompare(null) }
+    finally { setCmpLoading(false) }
+  }
+
+  useEffect(() => {
+    if (view === 'compare') loadCompare()
+  }, [view, cmpEmp, cmpPeriodA, cmpPeriodB]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const downloadTeamPdf = async () => {
+    if (!selectedTeam || !selectedPeriod) return
+    setDownloadingPdf(true)
+    try { await authApi.downloadFile(kpiApi.pdfTeamUrl(selectedTeam, selectedPeriod), 'GET', undefined, 'team-report.pdf') }
+    catch (e) { alert((e as Error).message) }
+    finally { setDownloadingPdf(false) }
+  }
+
+  const downloadEmpPdf = async (empId: number, periodId: number) => {
+    try { await authApi.downloadFile(kpiApi.pdfEmployeeUrl(empId, periodId), 'GET', undefined, 'employee-report.pdf') }
+    catch (e) { alert((e as Error).message) }
+  }
 
   const historyData = empResults
     .slice()
@@ -159,6 +193,11 @@ export default function ReportsPage() {
             <p className="page-subtitle">گزارش عملکرد تیمی و فردی — قابل چاپ و ذخیره به صورت PDF</p>
           </div>
           <button className="btn btn-outline" onClick={printView}><Printer size={15} /> چاپ / PDF</button>
+          {view === 'team' && (
+            <button className="btn btn-outline" onClick={downloadTeamPdf} disabled={downloadingPdf || !teamReport} style={{ marginRight: 8 }}>
+              <FileDown size={15} /> {downloadingPdf ? 'در حال تهیه...' : 'دانلود PDF تیم'}
+            </button>
+          )}
         </div>
 
         {/* View Toggle */}
@@ -176,6 +215,13 @@ export default function ReportsPage() {
             style={{ background: view === 'employee' ? 'var(--accent-primary)' : 'transparent', color: view === 'employee' ? 'white' : 'var(--text-secondary)' }}
           >
             گزارش فردی
+          </button>
+          <button
+            onClick={() => setView('compare')}
+            className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
+            style={{ background: view === 'compare' ? 'var(--accent-primary)' : 'transparent', color: view === 'compare' ? 'white' : 'var(--text-secondary)' }}
+          >
+            <GitCompareArrows size={14} /> مقایسه دوره‌ها
           </button>
         </div>
 
@@ -206,6 +252,35 @@ export default function ReportsPage() {
             </div>
           </div>
         </div>
+
+        {/* Compare Filters */}
+        {view === 'compare' && (
+          <div className="no-print card" style={{ padding: 16, marginBottom: 20 }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="form-label">کارمند</label>
+                <select className="form-input" value={cmpEmp} onChange={e => setCmpEmp(Number(e.target.value))}>
+                  <option value={0}>انتخاب کارمند</option>
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.employee_code} — {e.first_name} {e.last_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">دوره اول (مبنا)</label>
+                <select className="form-input" value={cmpPeriodA} onChange={e => setCmpPeriodA(Number(e.target.value))}>
+                  <option value={0}>انتخاب دوره</option>
+                  {periods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">دوره دوم (مقایسه)</label>
+                <select className="form-input" value={cmpPeriodB} onChange={e => setCmpPeriodB(Number(e.target.value))}>
+                  <option value={0}>انتخاب دوره</option>
+                  {periods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Team Report */}
         {view === 'team' && teamReport && (
@@ -409,10 +484,103 @@ export default function ReportsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <BreakdownPopover result={r} />
+                          <button
+                            onClick={() => downloadEmpPdf(selectedEmp, r.period_id)}
+                            title="دانلود PDF این دوره"
+                            className="cursor-pointer"
+                            style={{
+                              width: 26, height: 26, borderRadius: 8, border: '1px solid var(--border-primary)',
+                              background: 'var(--bg-tertiary)', color: 'var(--text-tertiary)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}
+                          >
+                            <FileDown size={14} />
+                          </button>
                           <ScorePill score={r.final_score} />
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {/* Compare View */}
+        {view === 'compare' && (
+          <div className="flex flex-col gap-6">
+            {!cmpEmp || !cmpPeriodA || !cmpPeriodB ? (
+              <div className="card">
+                <EmptyState
+                  icon={GitCompareArrows}
+                  title="کارمند و دو دوره را انتخاب کنید"
+                  description="نمرات، معیارها و خودارزیابی دو دوره کنار هم مقایسه می‌شوند"
+                />
+              </div>
+            ) : cmpLoading ? (
+              <div className="card"><TableSkeleton rows={6} cols={3} /></div>
+            ) : !compare ? (
+              <div className="card">
+                <EmptyState icon={ClipboardList} title="داده‌ای برای مقایسه یافت نشد" description="برای این کارمند در این دوره‌ها نمره‌ای ثبت نشده است" />
+              </div>
+            ) : (
+              <>
+                {/* Summary cards */}
+                <div className="grid grid-cols-3 gap-4">
+                  {[compare.period_a, compare.period_b].map((p, i) => (
+                    <div key={i} className="card" style={{ padding: 20, textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginBottom: 6 }}>{p.period_name}</div>
+                      <div style={{ fontSize: '2rem', fontWeight: 800, color: p.final_score != null ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
+                        {p.final_score != null ? toPersianNums(p.final_score.toFixed(1)) : '—'}
+                      </div>
+                      {p.self_score != null && (
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                          خودارزیابی: {toPersianNums(String(p.self_score))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="card" style={{ padding: 20, textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginBottom: 6 }}>تغییر</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 800, color: (compare.final_delta ?? 0) >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
+                      {compare.final_delta != null ? `${compare.final_delta >= 0 ? '+' : '−'}${toPersianNums(Math.abs(compare.final_delta).toFixed(1))}` : '—'}
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                      {(compare.final_delta ?? 0) >= 0 ? 'بهبود' : 'افت'} نسبت به دوره مبنا
+                    </div>
+                  </div>
+                </div>
+
+                {/* Criterion diff table */}
+                <div className="card" style={{ padding: 24 }}>
+                  <div className="card-header">
+                    <div className="card-header-title">
+                      <span className="card-header-icon"><ListChecks size={14} /></span>
+                      مقایسه معیار به معیار
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2" style={{ marginTop: 14 }}>
+                    {compare.criterion_diffs.map(d => {
+                      const delta = d.delta
+                      return (
+                        <div key={d.criterion_id} className="flex items-center gap-3" style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-tertiary)' }}>
+                          <div style={{ flex: 2, fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{d.criterion_name}</div>
+                          <div style={{ flex: 1, textAlign: 'center', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                            {d.score_a != null ? toPersianNums(String(d.score_a)) : '—'}
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'center', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                            {d.score_b != null ? toPersianNums(String(d.score_b)) : '—'}
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'center', fontSize: '0.8rem', fontWeight: 800, color: delta == null ? 'var(--text-tertiary)' : delta >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
+                            {delta != null ? `${delta >= 0 ? '+' : '−'}${toPersianNums(String(Math.abs(delta)))}` : '—'}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="flex justify-between text-xs mt-3" style={{ color: 'var(--text-tertiary)', padding: '0 14px' }}>
+                    <span>{compare.period_a.period_name}</span>
+                    <span>{compare.period_b.period_name}</span>
                   </div>
                 </div>
               </>

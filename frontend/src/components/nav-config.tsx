@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Bell, Star, UserCheck, Users, Target, TrendingUp,
   Building2, IdCard, CalendarX, HeartPulse, BarChart3, SlidersHorizontal,
   FileSpreadsheet, Settings2, CalendarClock, DatabaseBackup, ScrollText,
-  UserCog, Info, type LucideIcon,
+  UserCog, Info, KeyRound, type LucideIcon,
 } from 'lucide-react'
 
 export type AppRole = 'admin' | 'hr' | 'manager' | 'employee'
@@ -35,6 +35,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/dashboard', icon: LayoutDashboard, label: 'داشبورد' },
       { href: '/notifications', icon: Bell, label: 'اعلان‌ها' },
+      { href: '/profile', icon: KeyRound, label: 'حساب کاربری' },
       { href: '/about', icon: Info, label: 'درباره برنامه' },
     ],
   },

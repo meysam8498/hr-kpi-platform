@@ -1,5 +1,12 @@
 FROM node:20-alpine AS base
 
+LABEL org.opencontainers.image.title="HR KPI Platform — Frontend"
+LABEL org.opencontainers.image.description="Next.js dashboard for the HR KPI management system (Persian UI, dark/light themes)"
+LABEL org.opencontainers.image.authors="Meysam Ijadi <ijadi8498@gmail.com>"
+LABEL org.opencontainers.image.source="https://github.com/meysam8498/hr-kpi-platform"
+LABEL org.opencontainers.image.documentation="https://github.com/meysam8498/hr-kpi-platform#readme"
+LABEL org.opencontainers.image.licenses="MIT"
+
 # Install dependencies only
 FROM base AS deps
 WORKDIR /app

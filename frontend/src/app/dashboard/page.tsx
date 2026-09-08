@@ -21,6 +21,8 @@ export default function DashboardPage() {
   const [remindState, setRemindState] = useState<'idle' | 'busy' | 'done'>('idle')
   const [remindMsg, setRemindMsg] = useState('')
   const [teamTrends, setTeamTrends] = useState<Record<number, number[]>>({})
+  const [showAllEmployees, setShowAllEmployees] = useState(false)
+  const PREVIEW_COUNT = 8
 
   const sendReminder = async () => {
     if (!activePeriod || remindState === 'busy') return
@@ -121,48 +123,47 @@ export default function DashboardPage() {
               <div className="hero-sub">
                 امروز آماده‌ای عملکرد تیم‌ها را بررسی کنیم؟
               </div>
-              {activePeriod && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '5px 14px',
-                    borderRadius: 20,
-                    background: 'rgba(255,255,255,0.10)',
-                    border: '1px solid rgba(255,255,255,0.16)',
-                    fontSize: '0.72rem',
-                  }}
-                >
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#50c990', animation: 'pulse 2s ease-in-out infinite' }} />
-                  دوره فعال: <strong>{activePeriod.name}</strong>
+              {(activePeriod || remindMsg) && (
+                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  {activePeriod && (
+                    <div
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        padding: '5px 14px', borderRadius: 20,
+                        background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)',
+                        fontSize: '0.72rem', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#50c990', animation: 'pulse 2s ease-in-out infinite' }} />
+                      دوره فعال: <strong>{activePeriod.name}</strong>
+                    </div>
+                  )}
+                  {activePeriod && remindState !== 'done' && (
+                    <button
+                      onClick={sendReminder}
+                      disabled={remindState === 'busy'}
+                      title="اعلانی در پنل ثبت می‌شود که تیم‌های بدون امتیاز را نام می‌برد"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                        padding: '6px 14px', borderRadius: 20,
+                        background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+                        color: '#fff', fontSize: '0.72rem', cursor: 'pointer',
+                        opacity: remindState === 'busy' ? 0.6 : 1,
+                      }}
+                    >
+                      <BellRing size={13} />
+                      {remindState === 'busy' ? 'در حال ارسال...' : 'یادآوری به مدیران تیم‌های بدون امتیاز'}
+                    </button>
+                  )}
+                  {remindState === 'done' && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(80,201,144,0.18)', border: '1px solid rgba(80,201,144,0.35)', color: '#fff', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
+                      <CheckCircle2 size={13} /> {remindMsg}
+                    </div>
+                  )}
+                  {remindMsg && remindState !== 'done' && (
+                    <div style={{ fontSize: '0.68rem', opacity: 0.85 }}>{remindMsg}</div>
+                  )}
                 </div>
-              )}
-              {activePeriod && remindState !== 'done' && (
-                <button
-                  onClick={sendReminder}
-                  disabled={remindState === 'busy'}
-                  title="اعلانی در پنل ثبت می‌شود که تیم‌های بدون امتیاز را نام می‌برد"
-                  style={{
-                    marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '6px 14px', borderRadius: 20,
-                    background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#fff', fontSize: '0.72rem', cursor: 'pointer',
-                    opacity: remindState === 'busy' ? 0.6 : 1,
-                  }}
-                >
-                  <BellRing size={13} />
-                  {remindState === 'busy' ? 'در حال ارسال...' : 'یادآوری به مدیران تیم‌های بدون امتیاز'}
-                </button>
-              )}
-              {remindState === 'done' && (
-                <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(80,201,144,0.18)', border: '1px solid rgba(80,201,144,0.35)', color: '#fff', fontSize: '0.72rem' }}>
-                  <CheckCircle2 size={13} /> {remindMsg}
-                </div>
-              )}
-              {remindMsg && remindState !== 'done' && (
-                <div style={{ marginTop: 8, fontSize: '0.68rem', opacity: 0.85 }}>{remindMsg}</div>
               )}
             </div>
 
@@ -304,6 +305,17 @@ export default function DashboardPage() {
                 لیست کارمندان
               </div>
               <Link href="/employees" className="btn btn-ghost btn-sm">مشاهده همه</Link>
+              {employees.length > PREVIEW_COUNT && (
+                <button
+                  onClick={() => setShowAllEmployees(v => !v)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: '0.7rem' }}
+                >
+                  {showAllEmployees
+                    ? `نمایش کمتر`
+                    : `نمایش همه (${toPersianNums(String(employees.length))})`}
+                </button>
+              )}
             </div>
             {loading ? (
               <TableSkeleton rows={6} cols={5} />
@@ -323,7 +335,7 @@ export default function DashboardPage() {
                   { key: 'team', label: 'تیم', sortValue: e => e.team_name || '' },
                   { key: 'hire', label: 'تاریخ استخدام', sortValue: e => e.hire_date },
                 ]}
-                rows={employees}
+                rows={showAllEmployees ? employees : employees.slice(0, PREVIEW_COUNT)}
                 rowKey={e => e.id}
                 renderCell={(emp, key) => {
                   const fullName = `${emp.first_name} ${emp.last_name}`
@@ -362,7 +374,6 @@ export default function DashboardPage() {
     </AppLayout>
   )
 }
-
 /* ─── Live Jalali clock chip for the hero ─── */
 const PERSIAN_DAYS = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه']
 const PERSIAN_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']

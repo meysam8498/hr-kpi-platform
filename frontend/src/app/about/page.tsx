@@ -152,6 +152,28 @@ export default function AboutPage() {
           </div>
         </div>
 
+        {/* License + Project info */}
+        <div className="premium-card p-6">
+          <h2 className="font-bold mb-4 flex items-center gap-2"><Info size={17} /> اطلاعات پروژه</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { k: 'نسخه فعلی', v: `v${APP_VERSION}` },
+              { k: 'لایسنس', v: 'MIT License' },
+              { k: 'استک فناوری', v: 'Next.js + FastAPI + SQLite' },
+              { k: 'اجرا', v: 'لوکال — Docker / Docker Compose' },
+            ].map(x => (
+              <div key={x.k} className="p-3 rounded-xl flex items-center justify-between" style={{ background: 'var(--bg-tertiary)' }}>
+                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{x.k}</span>
+                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{x.v}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs mt-4" style={{ color: 'var(--text-tertiary)', lineHeight: 1.8 }}>
+            این نرم‌افزار تحت لایسنس MIT منتشر شده و استفاده، تغییر و توزیع آن آزاد است. کد منبع در
+            گیت‌هاب و ایمیج‌های آماده در داکر هاب در دسترس است.
+          </p>
+        </div>
+
         {/* Version + Changelog */}
         <div className="premium-card p-6">
           <div className="flex items-center gap-3 mb-5">

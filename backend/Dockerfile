@@ -1,5 +1,12 @@
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.title="HR KPI Platform — Backend"
+LABEL org.opencontainers.image.description="FastAPI backend for the HR KPI management system (Jalali calendar, role-based access, PDF/Excel reports)"
+LABEL org.opencontainers.image.authors="Meysam Ijadi <ijadi8498@gmail.com>"
+LABEL org.opencontainers.image.source="https://github.com/meysam8498/hr-kpi-platform"
+LABEL org.opencontainers.image.documentation="https://github.com/meysam8498/hr-kpi-platform#readme"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 # Install dependencies

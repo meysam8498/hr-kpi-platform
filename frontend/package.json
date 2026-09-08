@@ -1,7 +1,14 @@
 {
-  "name": "kpi-frontend",
-  "version": "1.0.0",
+  "name": "hr-kpi-platform-frontend",
+  "version": "1.7.0",
   "private": true,
+  "description": "Next.js dashboard for the HR KPI management system (Persian UI, dark/light themes)",
+  "author": "Meysam Ijadi <ijadi8498@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meysam8498/hr-kpi-platform.git"
+  },
   "scripts": {
     "dev": "next dev --port 8003",
     "build": "next build",

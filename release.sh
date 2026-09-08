@@ -35,15 +35,21 @@ fi
 
 step() { echo ""; echo "═══ $1 ═══"; }
 
+# ─── هماهنگی نسخه با APP_VERSION (منبع واحد) ───
+APPV=$(grep -oE "APP_VERSION = '[^']+'" frontend/src/lib/version.ts 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" || echo "")
+if [[ "$APPV" != "${VERSION#v}" ]]; then
+  echo "⚠  هشدار: APP_VERSION در version.ts (${APPV:-نامشخص}) با تگ ${VERSION} هماهنگ نیست."
+  echo "   لطفاً ابتدا frontend/src/lib/version.ts را به ${VERSION#v} و CHANGELOG را به‌روز کنید، سپس دوباره اجرا کنید."
+  exit 1
+fi
+echo "✓ نسخه APP_VERSION (${APPV}) با تگ ${VERSION} هماهنگ است"
+
 # ─── ۱) گیت: commit و push ───
 step "۱/۶  گیت — commit و push با تگ ${VERSION}"
 
 if ! git diff-index --quiet HEAD -- 2>/dev/null || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
   git add -A
-  git commit -m "Release ${VERSION}
-
-🤖 Generated with Codebuff
-Co-Authored-By: Codebuff <noreply@codebuff.com>" \
+  git commit -m "Release ${VERSION}" \
     || { echo "✗ commit ناموفق بود"; exit 1; }
   echo "✓ تغییرات commit شد"
 else

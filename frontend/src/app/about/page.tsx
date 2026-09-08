@@ -3,12 +3,13 @@
 /**
  * About page — what the app does, who built it, how roles work.
  */
-import { Gauge, ShieldCheck, UserCog, Users, User, Info, History, Sparkles } from 'lucide-react'
+import { Gauge, ShieldCheck, UserCog, Users, User, Info, History, Sparkles, ChevronDown } from 'lucide-react'
 import AppLayout from '@/components/Layout'
 import DesignerCard from '@/components/DesignerCard'
 import { GitFork, Container, Briefcase, Send, MessageCircle } from 'lucide-react'
 import { APP_VERSION, CHANGELOG } from '@/lib/version'
 import { toPersianNums } from '@/lib/jalali'
+import { useState } from 'react'
 
 const LINKS = [
   { href: 'https://github.com/meysam8498', label: 'گیت‌هاب', icon: GitFork },
@@ -38,6 +39,15 @@ const ROLE_CARDS = [
 ]
 
 export default function AboutPage() {
+  const [openVersions, setOpenVersions] = useState<Set<string>>(new Set([CHANGELOG[0]?.version]))
+
+  const toggleVersion = (v: string) => {
+    const next = new Set(openVersions)
+    if (next.has(v)) next.delete(v)
+    else next.add(v)
+    setOpenVersions(next)
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fadeIn" style={{ maxWidth: 900, margin: '0 auto' }}>
@@ -157,46 +167,67 @@ export default function AboutPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {CHANGELOG.map((c, i) => (
-              <div
-                key={c.version}
-                className="flex gap-4"
-                style={{ position: 'relative', paddingBottom: 22 }}
-              >
-                {i < CHANGELOG.length - 1 && (
-                  <div style={{ position: 'absolute', right: 13, top: 34, bottom: 0, width: 2, background: 'var(--border-primary)' }} />
-                )}
+            {CHANGELOG.map((c, i) => {
+              const isOpen = openVersions.has(c.version)
+              return (
                 <div
-                  className="flex items-center justify-center flex-shrink-0"
-                  style={{
-                    width: 28, height: 28, borderRadius: '50%', zIndex: 1,
-                    background: i === 0 ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                    border: '2px solid var(--border-primary)',
-                    color: i === 0 ? 'white' : 'var(--text-tertiary)',
-                  }}
+                  key={c.version}
+                  style={{ position: 'relative', paddingBottom: 12 }}
                 >
-                  {i === 0 ? <Sparkles size={13} /> : null}
-                </div>
-                <div className="flex-1" style={{ minWidth: 0 }}>
-                  <div className="flex items-center gap-3 flex-wrap" style={{ marginTop: 1 }}>
-                    <span className="badge" style={{
-                      background: i === 0 ? 'var(--accent-primary-subtle)' : 'var(--bg-tertiary)',
-                      color: i === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                      fontSize: '0.68rem', fontWeight: 700,
-                    }}>
-                      نسخه {toPersianNums(c.version)}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{toPersianNums(c.date)}</span>
+                  {i < CHANGELOG.length - 1 && (
+                    <div style={{ position: 'absolute', right: 13, top: 34, bottom: 0, width: 2, background: 'var(--border-primary)' }} />
+                  )}
+                  <div className="flex gap-4">
+                    <div
+                      className="flex items-center justify-center flex-shrink-0"
+                      style={{
+                        width: 28, height: 28, borderRadius: '50%', zIndex: 1,
+                        background: i === 0 ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                        border: '2px solid var(--border-primary)',
+                        color: i === 0 ? 'white' : 'var(--text-tertiary)',
+                      }}
+                    >
+                      {i === 0 ? <Sparkles size={13} /> : null}
+                    </div>
+                    <div className="flex-1" style={{ minWidth: 0 }}>
+                      <button
+                        onClick={() => toggleVersion(c.version)}
+                        className="flex items-center gap-3 flex-wrap w-full"
+                        style={{
+                          marginTop: 1, background: 'none', border: 'none', cursor: 'pointer',
+                          padding: 0, fontFamily: 'inherit', textAlign: 'right',
+                        }}
+                        aria-expanded={isOpen}
+                      >
+                        <span className="badge" style={{
+                          background: i === 0 ? 'var(--accent-primary-subtle)' : 'var(--bg-tertiary)',
+                          color: i === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                          fontSize: '0.68rem', fontWeight: 700,
+                        }}>
+                          نسخه {toPersianNums(c.version)}
+                        </span>
+                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{toPersianNums(c.date)}</span>
+                        <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{c.title}</span>
+                        <ChevronDown
+                          size={14}
+                          style={{
+                            marginRight: 'auto', color: 'var(--text-tertiary)',
+                            transition: 'transform 0.2s ease', transform: isOpen ? 'rotate(180deg)' : 'none',
+                          }}
+                        />
+                      </button>
+                      {isOpen && (
+                        <ul style={{ paddingRight: 18, margin: '6px 0 0', listStyle: 'disc' }} className="animate-fadeIn">
+                          {c.items.map(it => (
+                            <li key={it} className="text-xs" style={{ color: 'var(--text-secondary)', lineHeight: 2 }}>{it}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-sm font-bold mt-1" style={{ color: 'var(--text-primary)' }}>{c.title}</div>
-                  <ul style={{ paddingRight: 18, margin: '6px 0 0', listStyle: 'disc' }}>
-                    {c.items.map(it => (
-                      <li key={it} className="text-xs" style={{ color: 'var(--text-secondary)', lineHeight: 2 }}>{it}</li>
-                    ))}
-                  </ul>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>

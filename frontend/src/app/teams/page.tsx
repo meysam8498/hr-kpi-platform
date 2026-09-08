@@ -8,6 +8,7 @@ import { gregorianToJalaliStr, jalaliToGregorianStr, toPersianNums } from '@/lib
 import JalaliDatePicker from '@/components/JalaliDatePicker'
 import type { Team, Employee } from '@/lib/api'
 import { Avatar, StatusChip, EmptyState, TableSkeleton } from '@/components/ui'
+import SearchBox, { matchesQuery } from '@/components/SearchBox'
 import { useToast } from '@/components/Toast'
 
 export default function TeamsPage() {
@@ -17,6 +18,8 @@ export default function TeamsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showAddMember, setShowAddMember] = useState(false)
   const [showEditMember, setShowEditMember] = useState<Employee | null>(null)
+  const [teamSearch, setTeamSearch] = useState('')
+  const [memberSearch, setMemberSearch] = useState('')
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamDesc, setNewTeamDesc] = useState('')
   const [loading, setLoading] = useState(true)
@@ -156,8 +159,11 @@ export default function TeamsPage() {
             <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, padding: '0 4px' }}>
               لیست تیم‌ها
             </h2>
+            <div style={{ marginBottom: 10 }}>
+              <SearchBox value={teamSearch} onChange={setTeamSearch} placeholder="جستجوی تیم…" width="100%" />
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {teams.map(team => {
+              {teams.filter(t => matchesQuery([t.name, t.description], teamSearch)).map(team => {
                 const isActive = selectedTeam === team.id
                 const memberCount = employees.filter(e => e.team_id === team.id && !e.is_archived).length
                 return (
@@ -222,9 +228,12 @@ export default function TeamsPage() {
             ) : (
               <>
                 <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-                  <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    اعضای تیم {teams.find(t => t.id === selectedTeam)?.name}
-                  </h2>
+                  <div className="flex items-center gap-3 flex-1">
+                    <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
+                      اعضای تیم {teams.find(t => t.id === selectedTeam)?.name}
+                    </h2>
+                    <SearchBox value={memberSearch} onChange={setMemberSearch} placeholder="کد، نام یا سمت…" width={190} />
+                  </div>
                   <button onClick={openAddMember} className="btn btn-primary btn-sm"><UserPlus size={13} /> عضو جدید</button>
                 </div>
 
@@ -249,7 +258,9 @@ export default function TeamsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {teamEmployees.map(emp => (
+                        {teamEmployees.filter(emp => matchesQuery([
+                          emp.employee_code, emp.first_name, emp.last_name, emp.position, emp.phone,
+                        ], memberSearch)).map(emp => (
                           <tr key={emp.id}>
                             <td>
                               <span className="badge badge-info" style={{ fontFamily: "'Vazirmatn', monospace", fontSize: '0.65rem' }}>
@@ -276,7 +287,9 @@ export default function TeamsPage() {
                             </td>
                           </tr>
                         ))}
-                        {archivedTeamEmployees.map(emp => (
+                        {archivedTeamEmployees.filter(emp => matchesQuery([
+                          emp.employee_code, emp.first_name, emp.last_name, emp.position, emp.phone,
+                        ], memberSearch)).map(emp => (
                           <tr key={emp.id} style={{ opacity: 0.5 }}>
                             <td>
                               <span className="badge badge-info" style={{ fontFamily: "'Vazirmatn', monospace", fontSize: '0.65rem' }}>

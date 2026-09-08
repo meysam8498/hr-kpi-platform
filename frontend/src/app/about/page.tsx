@@ -3,10 +3,12 @@
 /**
  * About page — what the app does, who built it, how roles work.
  */
-import { Gauge, ShieldCheck, UserCog, Users, User, Info } from 'lucide-react'
+import { Gauge, ShieldCheck, UserCog, Users, User, Info, History, Sparkles } from 'lucide-react'
 import AppLayout from '@/components/Layout'
 import DesignerCard from '@/components/DesignerCard'
 import { GitFork, Container, Briefcase, Send, MessageCircle } from 'lucide-react'
+import { APP_VERSION, CHANGELOG } from '@/lib/version'
+import { toPersianNums } from '@/lib/jalali'
 
 const LINKS = [
   { href: 'https://github.com/meysam8498', label: 'گیت‌هاب', icon: GitFork },
@@ -140,9 +142,62 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Version */}
-        <div className="text-center text-xs" style={{ color: 'var(--text-tertiary)', paddingBottom: 10 }}>
-          نسخه ۱.۳.۲ — ساخته‌شده با Next.js، FastAPI و SQLite
+        {/* Version + Changelog */}
+        <div className="premium-card p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="card-header-icon" style={{ width: 40, height: 40, borderRadius: 12 }}>
+              <History size={18} />
+            </span>
+            <div>
+              <h2 className="font-bold" style={{ fontSize: '1rem' }}>تاریخچه نسخه‌ها</h2>
+              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                آخرین نسخه: <strong style={{ color: 'var(--accent-primary)' }}>{toPersianNums(APP_VERSION)}</strong> — ساخته‌شده با Next.js، FastAPI و SQLite
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {CHANGELOG.map((c, i) => (
+              <div
+                key={c.version}
+                className="flex gap-4"
+                style={{ position: 'relative', paddingBottom: 22 }}
+              >
+                {i < CHANGELOG.length - 1 && (
+                  <div style={{ position: 'absolute', right: 13, top: 34, bottom: 0, width: 2, background: 'var(--border-primary)' }} />
+                )}
+                <div
+                  className="flex items-center justify-center flex-shrink-0"
+                  style={{
+                    width: 28, height: 28, borderRadius: '50%', zIndex: 1,
+                    background: i === 0 ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                    border: '2px solid var(--border-primary)',
+                    color: i === 0 ? 'white' : 'var(--text-tertiary)',
+                  }}
+                >
+                  {i === 0 ? <Sparkles size={13} /> : null}
+                </div>
+                <div className="flex-1" style={{ minWidth: 0 }}>
+                  <div className="flex items-center gap-3 flex-wrap" style={{ marginTop: 1 }}>
+                    <span className="badge" style={{
+                      background: i === 0 ? 'var(--accent-primary-subtle)' : 'var(--bg-tertiary)',
+                      color: i === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      fontSize: '0.68rem', fontWeight: 700,
+                    }}>
+                      نسخه {toPersianNums(c.version)}
+                    </span>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{toPersianNums(c.date)}</span>
+                  </div>
+                  <div className="text-sm font-bold mt-1" style={{ color: 'var(--text-primary)' }}>{c.title}</div>
+                  <ul style={{ paddingRight: 18, margin: '6px 0 0', listStyle: 'disc' }}>
+                    {c.items.map(it => (
+                      <li key={it} className="text-xs" style={{ color: 'var(--text-secondary)', lineHeight: 2 }}>{it}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </AppLayout>

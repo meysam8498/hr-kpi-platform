@@ -8,6 +8,7 @@ import type { Employee, Team } from '@/lib/api'
 import { gregorianToJalaliStr, jalaliToGregorianStr, toPersianNums } from '@/lib/jalali'
 import JalaliDatePicker from '@/components/JalaliDatePicker'
 import { Avatar, EmptyState, TableSkeleton, BulkBar, StatusChip, HelpHint } from '@/components/ui'
+import SearchBox, { matchesQuery } from '@/components/SearchBox'
 import { useToast } from '@/components/Toast'
 
 type ViewMode = 'active' | 'archived'
@@ -16,6 +17,7 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [filterTeam, setFilterTeam] = useState<number>(0)
+  const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('active')
   const [loading, setLoading] = useState(true)
 
@@ -243,7 +245,10 @@ export default function EmployeesPage() {
               onClick={() => setViewMode('active')}
               className={`tab ${viewMode === 'active' ? 'tab-active' : ''}`}
             >
-              فعال ({employees.length})
+              فعال ({employees.filter(emp => matchesQuery([
+                emp.employee_code, emp.first_name, emp.last_name, emp.position, emp.phone,
+                teams.find(t => t.id === emp.team_id)?.name,
+              ], search)).length})
             </button>
             <button
               onClick={() => setViewMode('archived')}
@@ -261,6 +266,7 @@ export default function EmployeesPage() {
             <option value={0}>همه تیم‌ها</option>
             {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
+          <SearchBox value={search} onChange={setSearch} placeholder="کد، نام، سمت یا تیم…" width={220} />
         </div>
 
         {/* Employee Table */}
@@ -297,7 +303,10 @@ export default function EmployeesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map(emp => {
+                  {employees.filter(emp => matchesQuery([
+                    emp.employee_code, emp.first_name, emp.last_name, emp.position, emp.phone,
+                    teams.find(t => t.id === emp.team_id)?.name,
+                  ], search)).map(emp => {
                     const fullName = `${emp.first_name} ${emp.last_name}`
                     const isSelected = selected.has(emp.id)
                     return (

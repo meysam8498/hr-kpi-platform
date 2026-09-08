@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  Sun, Moon, Gauge, ChevronDown, LogOut, User as UserIcon, Menu, X,
+  Sun, Moon, Gauge, ChevronDown, LogOut, User as UserIcon, Menu, X, UserRound,
 } from 'lucide-react'
 import { useTheme } from '@/lib/theme-context'
 import { useAuth, ROLE_LABELS } from '@/lib/auth-context'
@@ -226,6 +226,16 @@ export default function TopNav() {
                       {user.username} — {ROLE_LABELS[user.role]}
                     </div>
                   </div>
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-2.5 w-full"
+                    style={{
+                      padding: '9px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', color: 'var(--text-primary)',
+                      background: 'transparent', fontSize: '0.78rem', fontFamily: 'inherit', width: '100%', textAlign: 'right',
+                    }}
+                  >
+                    <UserRound size={14} /> حساب کاربری
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-2.5 w-full"

@@ -11,6 +11,7 @@ import { authUsersApi, teamsApi, employeesApi } from '@/lib/api'
 import type { Team, Employee } from '@/lib/api'
 import { useAuth, ROLE_LABELS } from '@/lib/auth-context'
 import { Avatar, EmptyState, TableSkeleton } from '@/components/ui'
+import SearchBox, { matchesQuery } from '@/components/SearchBox'
 import { useToast } from '@/components/Toast'
 
 interface UserRow {
@@ -33,6 +34,7 @@ export default function UsersPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [search, setSearch] = useState('')
 
   // Create form
   const [username, setUsername] = useState('')
@@ -192,6 +194,16 @@ export default function UsersPage() {
         )}
 
         <div className="premium-card overflow-hidden">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--border-primary)' }}>
+            <SearchBox value={search} onChange={setSearch} placeholder="نام، نام کاربری، نقش یا تیم…" width={240} />
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              {users.filter(u => matchesQuery([
+                u.username, u.full_name, u.role,
+                teams.find(t => t.id === u.team_id)?.name,
+                employees.find(e => e.id === u.employee_id)?.employee_code,
+              ], search)).length} از {users.length} کاربر
+            </span>
+          </div>
           {loading ? (
             <div className="p-6"><TableSkeleton rows={5} cols={5} /></div>
           ) : users.length === 0 ? (
@@ -211,7 +223,11 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map(u => (
+                {users.filter(u => matchesQuery([
+                  u.username, u.full_name, u.role,
+                  teams.find(t => t.id === u.team_id)?.name,
+                  employees.find(e => e.id === u.employee_id)?.employee_code,
+                ], search)).map(u => (
                   <tr key={u.id}>
                     <td>
                       <div className="flex items-center gap-2.5">

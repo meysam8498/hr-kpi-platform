@@ -8,6 +8,7 @@ import { teamsApi, employeesApi, kpiApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod, KPICriterion, TeamKPIConfig, KPIEntry } from '@/lib/api'
 import { Avatar, EmptyState, TableSkeleton, ScorePill } from '@/components/ui'
 import { useToast } from '@/components/Toast'
+import { matchesQuery } from '@/components/SearchBox'
 import { toPersianNums } from '@/lib/jalali'
 
 export default function ScoringPage() {
@@ -21,6 +22,7 @@ export default function ScoringPage() {
   const [selectedTeam, setSelectedTeam] = useState<number>(0)
   const [selectedPeriod, setSelectedPeriod] = useState<number>(0)
   const [selectedEmp, setSelectedEmp] = useState<number>(0)
+  const [empSearch, setEmpSearch] = useState('')
 
   const [scores, setScores] = useState<Record<number, number>>({})
   const [comments, setComments] = useState<Record<number, string>>({})
@@ -188,9 +190,17 @@ export default function ScoringPage() {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>انتخاب کارمند</label>
+              <input
+                placeholder="جستجو: کد یا نام…"
+                value={empSearch}
+                onChange={e => setEmpSearch(e.target.value)}
+                style={{ marginBottom: 6, fontSize: '0.78rem' }}
+              />
               <select value={selectedEmp} onChange={e => handleEmployeeChange(Number(e.target.value))}>
                 <option value={0}>انتخاب کارمند...</option>
-                {teamEmployees.map(emp => (
+                {teamEmployees.filter(emp => matchesQuery([
+                  emp.employee_code, emp.first_name, emp.last_name, emp.position,
+                ], empSearch)).map(emp => (
                   <option key={emp.id} value={emp.id}>{emp.employee_code} — {emp.first_name} {emp.last_name}</option>
                 ))}
               </select>

@@ -7,6 +7,7 @@ Roles (least → most privilege):
 - hr:        HR manager — everything except user management
 - admin:     full control incl. user management
 """
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -17,6 +18,39 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import User
+
+# ─── Login rate limiting ────────────────────────────────────
+# In-memory sliding window per client IP: max LOGIN_MAX_ATTEMPTS
+# failures within LOGIN_WINDOW_SECONDS → temporary lockout.
+# (Single-process local app; no external cache needed.)
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_WINDOW_SECONDS = 300  # 5 minutes
+LOGIN_LOCKOUT_SECONDS = 600  # 10 minutes
+
+_failed_logins: dict[str, list[float]] = defaultdict(list)
+
+
+def check_login_rate_limit(client_ip: str) -> None:
+    """Raise 429 if this IP is currently locked out."""
+    now = datetime.now(timezone.utc).timestamp()
+    attempts = [t for t in _failed_logins.get(client_ip, []) if now - t < LOGIN_LOCKOUT_SECONDS]
+    _failed_logins[client_ip] = attempts
+    if len(attempts) >= LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail=f"تلاش‌های ناموفق زیاد است — {LOGIN_LOCKOUT_SECONDS // 60} دقیقه دیگر دوباره تلاش کنید",
+        )
+
+
+def record_failed_login(client_ip: str) -> None:
+    now = datetime.now(timezone.utc).timestamp()
+    attempts = [t for t in _failed_logins.get(client_ip, []) if now - t < LOGIN_WINDOW_SECONDS]
+    attempts.append(now)
+    _failed_logins[client_ip] = attempts
+
+
+def clear_failed_logins(client_ip: str) -> None:
+    _failed_logins.pop(client_ip, None)
 
 # Secret: overridden via env var in production deployments.
 SECRET_KEY = "kpi-local-secret-change-me"
@@ -41,6 +75,7 @@ def create_token(user: User) -> str:
         "role": user.role,
         "team_id": user.team_id,
         "employee_id": user.employee_id,
+        "must_change_password": bool(user.must_change_password),
         "exp": datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRE_HOURS),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)

@@ -3,7 +3,7 @@ Auth routes — login, current user, and user management (admin only).
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from ..models import User
 from ..auth import (
     create_token, get_current_user, hash_password, verify_password,
     require_admin, require_admin_or_hr,
+    check_login_rate_limit, record_failed_login, clear_failed_logins,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
@@ -47,6 +48,7 @@ class UserOut(BaseModel):
     team_id: Optional[int]
     employee_id: Optional[int]
     is_active: bool
+    must_change_password: bool = False
     model_config = {"from_attributes": True}
 
 class TokenOut(BaseModel):
@@ -59,12 +61,16 @@ VALID_ROLES = {"admin", "hr", "manager", "employee"}
 # ─── Login / me ──────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenOut)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
+    client_ip = http.client.host if http.client else "unknown"
+    check_login_rate_limit(client_ip)
     user = db.query(User).filter(User.username == request.username.strip()).first()
     if not user or not verify_password(request.password, user.password_hash):
+        record_failed_login(client_ip)
         raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="حساب شما غیرفعال شده است")
+    clear_failed_logins(client_ip)
     return {"token": create_token(user), "user": user}
 
 
@@ -87,6 +93,7 @@ def change_password(request: ChangePasswordRequest, db: Session = Depends(get_db
     if request.current_password == request.new_password:
         raise HTTPException(status_code=422, detail="رمز جدید باید با رمز فعلی متفاوت باشد")
     user.password_hash = hash_password(request.new_password)
+    user.must_change_password = False
     db.commit()
     return {"message": "رمز عبور با موفقیت تغییر کرد"}
 

@@ -38,3 +38,6 @@ Thumbs.db
 # ─── Freebuff / local tooling ───
 .freebuff/
 *.log
+
+# Backup snapshots (auto-generated)
+backend/backups/

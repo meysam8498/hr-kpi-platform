@@ -529,6 +529,48 @@ input[type="number"] { -moz-appearance: textfield; }
   border-bottom: none;
 }
 
+/* ─── DataTable enhancements ─────────────────────────────── */
+/* Hover-revealed row actions: appear on hover/focus, always visible on touch */
+.row-actions-cell .btn {
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+.data-row:hover .row-actions-cell .btn,
+.data-row:focus-within .row-actions-cell .btn {
+  opacity: 1;
+}
+@media (hover: none) {
+  .row-actions-cell .btn { opacity: 1; }
+}
+
+/* Sticky table header shadow when scrolled */
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+/* Mobile data cards (DataTable fallback) */
+.mobile-data-card {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease;
+}
+.mobile-data-card:active {
+  box-shadow: var(--shadow-md);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FOCUS RINGS — visible keyboard focus everywhere (WCAG 2.4.7)
+   ════════════════════════════════════════════════════════════════ */
+.btn:focus-visible,
+.premium-btn:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
 /* ══════════════════════════════════════════════════════════════════
    BUTTON — Fitts's Law: Large, obvious targets
    Minimum 44px touch target (WCAG 2.5.5)

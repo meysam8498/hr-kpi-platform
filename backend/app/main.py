@@ -136,8 +136,6 @@ def seed_default_data():
     finally:
         db.close()
 
-    seed_default_users()
-
 
 def seed_default_users():
     """Ensure the built-in admin and HR accounts exist — runs on every
@@ -150,15 +148,17 @@ def seed_default_users():
         created = False
         if not db.query(User).filter(User.username == "admin").first():
             db.add(User(username="admin", password_hash=hash_password("admin123"),
-                        full_name="مدیر سیستم", role="admin"))
+                        full_name="مدیر سیستم", role="admin",
+                        must_change_password=True))
             created = True
         if not db.query(User).filter(User.username == "hr").first():
             db.add(User(username="hr", password_hash=hash_password("hr123"),
-                        full_name="مدیر منابع انسانی", role="hr"))
+                        full_name="مدیر منابع انسانی", role="hr",
+                        must_change_password=True))
             created = True
         if created:
             db.commit()
-            print("[OK] Default users ensured: admin/admin123, hr/hr123")
+            print("[OK] Default users ensured: admin/admin123, hr/hr123 (must change password on first login)")
     except Exception as e:
         db.rollback()
         print(f"[WARN] User seed error: {e}")
@@ -170,6 +170,7 @@ def seed_default_users():
 async def lifespan(app: FastAPI):
     init_db()
     seed_default_data()
+    seed_default_users()
     # Auto-archive periods >3 months old
     from .routes.kpi import run_auto_archive
     db = SessionLocal()
@@ -177,7 +178,12 @@ async def lifespan(app: FastAPI):
         run_auto_archive(db)
     finally:
         db.close()
+    # Nightly automatic database backup (30-day retention)
+    import asyncio
+    from .backup_scheduler import nightly_backup_loop
+    backup_task = asyncio.create_task(nightly_backup_loop())
     yield
+    backup_task.cancel()
 
 
 app = FastAPI(

@@ -8,6 +8,8 @@ import { teamsApi, employeesApi, kpiApi, notificationsApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod } from '@/lib/api'
 import { gregorianToJalaliStr, toPersianNums } from '@/lib/jalali'
 import { Avatar, CountUp, EmptyState, TableSkeleton, CardsSkeleton } from '@/components/ui'
+import DataTable from '@/components/DataTable'
+import Sparkline from '@/components/Sparkline'
 
 export default function DashboardPage() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -18,6 +20,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [remindState, setRemindState] = useState<'idle' | 'busy' | 'done'>('idle')
   const [remindMsg, setRemindMsg] = useState('')
+  const [teamTrends, setTeamTrends] = useState<Record<number, number[]>>({})
 
   const sendReminder = async () => {
     if (!activePeriod || remindState === 'busy') return
@@ -48,6 +51,24 @@ export default function DashboardPage() {
           .then((r: any) => setCompanyAvg(r.company_avg || 0))
           .catch(() => {})
       }
+      // Per-team trend sparklines (last 5 non-archived periods)
+      kpiApi.listPeriods().then(async ps => {
+        const usable = ps.filter(p => !p.is_archived).slice(-5)
+        const trends: Record<number, number[]> = {}
+        await Promise.all(usable.map(async period => {
+          await Promise.all(teams.map(async team => {
+            try {
+              const res = await kpiApi.calculateTeam(team.id, period.id) as any
+              const scores = (res?.results || []).map((r: any) => Number(r.final_score ?? 0))
+              if (scores.length) {
+                const avg = scores.reduce((a: number, b: number) => a + b, 0) / scores.length
+                ;(trends[team.id] ||= []).push(Math.round(avg * 10) / 10)
+              }
+            } catch {}
+          }))
+        }))
+        setTeamTrends(trends)
+      }).catch(() => {})
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
@@ -264,6 +285,11 @@ export default function DashboardPage() {
                         {toPersianNums(String(team.member_count))} عضو
                       </div>
                     </div>
+                    {(teamTrends[team.id]?.length ?? 0) >= 2 && (
+                      <div title="روند میانگین تیم در دوره‌های اخیر">
+                        <Sparkline points={teamTrends[team.id]} width={64} height={20} />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -289,49 +315,46 @@ export default function DashboardPage() {
                 action={<Link href="/employees" className="btn btn-primary btn-sm">افزودن کارمند</Link>}
               />
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>کد</th>
-                      <th>نام</th>
-                      <th>سمت</th>
-                      <th>تیم</th>
-                      <th>تاریخ استخدام</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map(emp => {
-                      const fullName = `${emp.first_name} ${emp.last_name}`
-                      return (
-                        <tr key={emp.id}>
-                          <td>
-                            <span
-                              className="badge badge-info"
-                              style={{ fontFamily: "'Vazirmatn', monospace", fontSize: '0.65rem' }}
-                            >
-                              {emp.employee_code}
-                            </span>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <Avatar name={fullName} size={32} />
-                              <span style={{ fontWeight: 600 }}>{fullName}</span>
-                            </div>
-                          </td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{emp.position}</td>
-                          <td>
-                            <span className="badge badge-primary">{emp.team_name || '—'}</span>
-                          </td>
-                          <td style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
-                            {toPersianNums(gregorianToJalaliStr(emp.hire_date))}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable
+                columns={[
+                  { key: 'code', label: 'کد', sortValue: e => e.employee_code, width: 90 },
+                  { key: 'name', label: 'نام', sortValue: e => `${e.first_name} ${e.last_name}` },
+                  { key: 'position', label: 'سمت', sortValue: e => e.position },
+                  { key: 'team', label: 'تیم', sortValue: e => e.team_name || '' },
+                  { key: 'hire', label: 'تاریخ استخدام', sortValue: e => e.hire_date },
+                ]}
+                rows={employees}
+                rowKey={e => e.id}
+                renderCell={(emp, key) => {
+                  const fullName = `${emp.first_name} ${emp.last_name}`
+                  if (key === 'code') return (
+                    <span className="badge badge-info" style={{ fontFamily: "'Vazirmatn', monospace", fontSize: '0.65rem' }}>
+                      {emp.employee_code}
+                    </span>
+                  )
+                  if (key === 'name') return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Avatar name={fullName} size={32} />
+                      <span style={{ fontWeight: 600 }}>{fullName}</span>
+                    </div>
+                  )
+                  if (key === 'position') return <span style={{ color: 'var(--text-secondary)' }}>{emp.position}</span>
+                  if (key === 'team') return <span className="badge badge-primary">{emp.team_name || '—'}</span>
+                  return <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>{toPersianNums(gregorianToJalaliStr(emp.hire_date))}</span>
+                }}
+                mobileCard={emp => (
+                  <div className="flex items-center gap-3">
+                    <Avatar name={`${emp.first_name} ${emp.last_name}`} size={38} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{emp.first_name} {emp.last_name}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>
+                        {emp.position} — {emp.team_name || 'بدون تیم'}
+                      </div>
+                    </div>
+                    <span className="badge badge-info" style={{ fontFamily: "'Vazirmatn', monospace", fontSize: '0.62rem' }}>{emp.employee_code}</span>
+                  </div>
+                )}
+              />
             )}
           </div>
         </div>

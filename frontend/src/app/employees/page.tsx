@@ -347,7 +347,7 @@ export default function EmployeesPage() {
                         <td style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
                           {toPersianNums(gregorianToJalaliStr(emp.hire_date))}
                         </td>
-                        <td>
+                        <td className="row-actions-cell">
                           <div className="flex items-center gap-1" style={{ justifyContent: 'center' }}>
                             {viewMode === 'active' ? (
                               <>

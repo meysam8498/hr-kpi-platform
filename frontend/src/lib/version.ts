@@ -3,7 +3,7 @@
  * Bump APP_VERSION on every release; add an entry to CHANGELOG (newest first).
  * The About page renders both; the footer/navbar can import APP_VERSION.
  */
-export const APP_VERSION = '1.11.0'
+export const APP_VERSION = '1.12.0'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.12.0',
+    date: '۱۴۰۵/۰۶/۱۹',
+    title: 'نرمال‌سازی هوشمند نمرات + نوار تیم‌ها روی داشبورد',
+    items: [
+      'حالت جدید «فقط معیارهای نمره‌دار»: معیار بدون نمره صفر حساب نمی‌شود — دیگر تیم‌هایی که همه معیارها را نمره نمی‌دهند نمره ناعادلانه نمی‌گیرند (قابل تنظیم برای هر تیم از تنظیمات KPI)',
+      'نوار «نمای تیم‌های شما» روی داشبورد: میانگین رنگی همه تیم‌های تحت مدیریت بدون خروج از صفحه اصلی + لینک به نمای کامل',
+      'Seeding خودکار تنظیمات KPI برای تیم‌های بدون معیار (مثلاً بعد از ورود گروهی) — با وزن‌های جمعاً ۱۰۰',
+      '۳ تست جدید برای حالت نرمال‌سازی — مجموعاً ۴۰ تست',
+    ],
+  },
   {
     version: '1.11.0',
     date: '۱۴۰۵/۰۶/۱۹',

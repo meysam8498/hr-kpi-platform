@@ -104,6 +104,7 @@ class TeamKPIConfigCreate(BaseModel):
 class TeamKPIConfigUpdate(BaseModel):
     weight: Optional[float] = Field(default=None, ge=0, le=100)
     is_active: Optional[bool] = None
+    normalize_over_entered: Optional[bool] = None
 
 class TeamKPIConfigOut(BaseModel):
     id: int
@@ -113,6 +114,7 @@ class TeamKPIConfigOut(BaseModel):
     criterion_category: Optional[str] = None
     weight: float
     is_active: bool
+    normalize_over_entered: Optional[bool] = False
     created_at: datetime
     model_config = {"from_attributes": True}
 

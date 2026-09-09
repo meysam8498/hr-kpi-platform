@@ -25,6 +25,10 @@ export default function KPIConfigPage() {
   const [blend, setBlend] = useState<{ base_weight: number; peer_weight: number; goal_weight: number } | null>(null)
   const [blendMsg, setBlendMsg] = useState<string>('')
 
+  // Normalization mode: average over entered criteria only
+  const [normalizeEntered, setNormalizeEntered] = useState(false)
+  const [normMsg, setNormMsg] = useState<string>('')
+
   const load = () => {
     Promise.all([teamsApi.list(), kpiApi.listCriteria()]).then(([t, c]) => {
       setTeams(t); setCriteria(c)
@@ -32,7 +36,19 @@ export default function KPIConfigPage() {
     }).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
-  useEffect(() => { if (selectedTeam) { kpiApi.teamConfig(selectedTeam).then(setTeamConfigs); loadBlend(selectedTeam) } }, [selectedTeam])
+  useEffect(() => { if (selectedTeam) { kpiApi.teamConfig(selectedTeam).then(setTeamConfigs); loadBlend(selectedTeam); kpiApi.getNormalizeMode(selectedTeam).then(r => setNormalizeEntered(r.normalize_over_entered)).catch(() => setNormalizeEntered(false)) } }, [selectedTeam])
+
+  const toggleNormalize = async () => {
+    if (!selectedTeam) return
+    const next = !normalizeEntered
+    try {
+      const r = await kpiApi.setNormalizeMode(selectedTeam, next)
+      setNormalizeEntered(r.normalize_over_entered)
+      setNormMsg('ذخیره شد — با محاسبه مجدد نمرات اعمال می‌شود')
+    } catch {
+      setNormMsg('خطا در ذخیره')
+    }
+  }
 
   const loadBlend = (teamId: number) => {
     kpiApi.getTeamBlend(teamId).then(b => setBlend({ base_weight: b.base_weight, peer_weight: b.peer_weight, goal_weight: b.goal_weight })).catch(() => setBlend(null))
@@ -178,6 +194,39 @@ export default function KPIConfigPage() {
           <div className="flex items-center gap-3">
             <button onClick={saveBlend} className="premium-btn btn-primary">ذخیره ترکیب</button>
             {blendMsg && <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{blendMsg}</span>}
+          </div>
+        </div>
+
+        {/* Normalization mode */}
+        <div className="premium-card p-6">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div style={{ maxWidth: 640 }}>
+              <h2 className="font-bold mb-2 flex items-center gap-2"><Scale size={17} /> نحوه محاسبه معیارهای نمره‌نداده‌شده</h2>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                وقتی بعضی معیارهای یک کارمند نمره ندارند، چه چیزی جای آن‌ها بنشیند؟
+                {normalizeEntered
+                  ? ' در حالت فعلی، فقط معیارهای نمره‌دار در میانگین حساب می‌شوند — نمره‌ی نداده‌شده بی‌اثر است (پیشنهادی برای تیم‌هایی که همه معیارها را نمره نمی‌دهند).'
+                  : ' در حالت فعلی، معیار بدون نمره صفر حساب می‌شود — برای تیم‌هایی که همیشه همه معیارها را نمره می‌دهند درست است.'}
+              </p>
+            </div>
+            <div className="flex flex-col items-center gap-1" style={{ minWidth: 190 }}>
+              <button
+                onClick={toggleNormalize}
+                role="switch"
+                aria-checked={normalizeEntered}
+                className="premium-btn"
+                style={{
+                  padding: '8px 18px', fontSize: '0.85rem', fontWeight: 700,
+                  background: normalizeEntered ? 'var(--accent-success-subtle, rgba(52,199,89,0.12))' : 'var(--bg-tertiary)',
+                  color: normalizeEntered ? 'var(--accent-success)' : 'var(--text-secondary)',
+                  border: `1px solid ${normalizeEntered ? 'var(--accent-success)' : 'var(--border-primary)'}`,
+                }}
+              >
+                {normalizeEntered ? '✓ فقط معیارهای نمره‌دار' : 'معیار بدون نمره = صفر'}
+              </button>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>کلیک برای تغییر (تیم انتخاب‌شده)</span>
+              {normMsg && <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{normMsg}</span>}
+            </div>
           </div>
         </div>
 

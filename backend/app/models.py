@@ -146,6 +146,10 @@ class TeamKPIConfig(Base):
     criterion_id: Mapped[int] = mapped_column(Integer, ForeignKey("kpi_criteria.id"), nullable=False)
     weight: Mapped[float] = mapped_column(Float, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # When True, the KPI engine averages only over criteria that have an
+    # entry for the employee/period — partially-scored teams don't get
+    # unfairly low averages from missing entries scoring as zero.
+    normalize_over_entered: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     team: Mapped["Team"] = relationship("Team", back_populates="kpi_configs")

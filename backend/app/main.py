@@ -166,6 +166,54 @@ def seed_default_users():
         db.close()
 
 
+def seed_team_configs_for_new_teams():
+    """Ensure every team has a complete, weight-normalized KPI config.
+
+    Teams created after the initial seed (e.g. by a bulk import) would
+    otherwise have no criteria and produce zero/None KPI scores. Gives
+    each config-less team sensible common criteria summing to 100.
+    Idempotent — only touches teams that have no config at all.
+    """
+    db = SessionLocal()
+    try:
+        common = (
+            db.query(KPICriterion)
+            .filter(KPICriterion.category == CriterionCategory.COMMON)
+            .all()
+        )
+        if not common:
+            return
+        # Pick up to 5 common criteria, weights summing to 100
+        chosen = common[:5]
+        weights = [30, 25, 20, 15, 10][: len(chosen)]
+        fixed = 100 - sum(weights)
+        if chosen and fixed != 0:
+            weights[0] += fixed
+
+        configured_teams = {
+            row[0] for row in db.query(TeamKPIConfig.team_id).distinct().all()
+        }
+        all_teams = db.query(Team).all()
+        added = 0
+        for team in all_teams:
+            if team.id in configured_teams:
+                continue
+            for crit, w in zip(chosen, weights):
+                db.add(TeamKPIConfig(
+                    team_id=team.id, criterion_id=crit.id,
+                    weight=float(w), normalize_over_entered=False,
+                ))
+            added += 1
+        if added:
+            db.commit()
+            print(f"[OK] KPI config seeded for {added} team(s) that had none.")
+    except Exception as e:
+        db.rollback()
+        print(f"[WARN] Team-config seed error: {e}")
+    finally:
+        db.close()
+
+
 def seed_demo_period_with_scores():
     """Ensure a second, closed reporting period exists with calculated
     scores for at least a few employees — so date-range filters and
@@ -252,6 +300,7 @@ async def lifespan(app: FastAPI):
     init_db()
     seed_default_data()
     seed_default_users()
+    seed_team_configs_for_new_teams()
     seed_demo_period_with_scores()
     # Auto-archive periods >3 months old
     from .routes.kpi import run_auto_archive

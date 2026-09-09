@@ -86,6 +86,7 @@ export interface TeamKPIConfig {
   criterion_category: string | null
   weight: number
   is_active: boolean
+  normalize_over_entered?: boolean | null
   created_at: string
 }
 
@@ -188,6 +189,11 @@ export const kpiApi = {
   teamConfig: (teamId: number) => request<TeamKPIConfig[]>(`/api/kpi/teams/${teamId}/config`),
   addTeamConfig: (teamId: number, data: { criterion_id: number; weight: number }) =>
     request<TeamKPIConfig>(`/api/kpi/teams/${teamId}/config`, { method: 'POST', json: data }),
+  setNormalizeMode: (teamId: number, normalizeOverEntered: boolean) =>
+    request<{ team_id: number; normalize_over_entered: boolean; message: string }>(
+      `/api/kpi/teams/${teamId}/normalize-mode`, { method: 'PUT', json: { normalize_over_entered: normalizeOverEntered } }),
+  getNormalizeMode: (teamId: number) =>
+    request<{ team_id: number; normalize_over_entered: boolean }>(`/api/kpi/teams/${teamId}/normalize-mode`),
   removeTeamConfig: (teamId: number, configId: number) =>
     request(`/api/kpi/teams/${teamId}/config/${configId}`, { method: 'DELETE' }),
 

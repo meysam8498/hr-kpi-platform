@@ -106,7 +106,8 @@ def get_team_config(team_id: int, db: Session = Depends(get_db), user: User = De
             id=cfg.id, team_id=cfg.team_id, criterion_id=cfg.criterion_id,
             criterion_name=crit.name if crit else None,
             criterion_category=crit.category.value if crit else None,
-            weight=cfg.weight, is_active=cfg.is_active, created_at=cfg.created_at,
+            weight=cfg.weight, is_active=cfg.is_active,
+            normalize_over_entered=bool(cfg.normalize_over_entered), created_at=cfg.created_at,
         ))
     return result
 
@@ -134,7 +135,8 @@ def add_team_config(team_id: int, request: TeamKPIConfigCreate, db: Session = De
     return TeamKPIConfigOut(
         id=config.id, team_id=config.team_id, criterion_id=config.criterion_id,
         criterion_name=criterion.name, criterion_category=criterion.category.value,
-        weight=config.weight, is_active=config.is_active, created_at=config.created_at,
+        weight=config.weight, is_active=config.is_active,
+        normalize_over_entered=bool(config.normalize_over_entered), created_at=config.created_at,
     )
 
 
@@ -155,8 +157,34 @@ def update_team_config(team_id: int, config_id: int, request: TeamKPIConfigUpdat
         id=config.id, team_id=config.team_id, criterion_id=config.criterion_id,
         criterion_name=crit.name if crit else None,
         criterion_category=crit.category.value if crit else None,
-        weight=config.weight, is_active=config.is_active, created_at=config.created_at,
+        weight=config.weight, is_active=config.is_active,
+        normalize_over_entered=bool(config.normalize_over_entered), created_at=config.created_at,
     )
+
+
+@router.put("/teams/{team_id}/normalize-mode")
+def set_normalize_mode(team_id: int, request: dict, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
+    """Toggle «normalize only over entered criteria» for a whole team at once."""
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="تیم یافت نشد")
+    value = bool(request.get("normalize_over_entered", False))
+    db.query(TeamKPIConfig).filter(TeamKPIConfig.team_id == team_id).update(
+        {"normalize_over_entered": value}
+    )
+    db.commit()
+    log_audit(db, "config", "team_config", team_id,
+              f"حالت نرمال‌سازی تیم «{team.name}»: {('فقط معیارهای نمره‌دار' if value else 'همه معیارها')}")
+    db.commit()
+    return {"team_id": team_id, "normalize_over_entered": value,
+            "message": f"نرمال‌سازی روی {'معیارهای نمره‌دار' if value else 'همه معیارها'} تنظیم شد"}
+
+
+@router.get("/teams/{team_id}/normalize-mode")
+def get_normalize_mode(team_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    cfgs = db.query(TeamKPIConfig).filter(TeamKPIConfig.team_id == team_id).all()
+    return {"team_id": team_id,
+            "normalize_over_entered": bool(cfgs and cfgs[0].normalize_over_entered)}
 
 
 @router.delete("/teams/{team_id}/config/{config_id}")

@@ -72,6 +72,8 @@ def calculate_employee_kpi(employee_id: int, period_id: int, db: Session) -> dic
     # Build weighted score
     total_weighted = 0.0
     total_weight = 0.0
+    entered_weighted = 0.0
+    entered_weight = 0.0
     breakdown = []
 
     for cfg in configs:
@@ -91,6 +93,9 @@ def calculate_employee_kpi(employee_id: int, period_id: int, db: Session) -> dic
 
         total_weighted += score * weight
         total_weight += weight
+        if entry is not None:
+            entered_weighted += score * weight
+            entered_weight += weight
 
         breakdown.append({
             "criterion_id": cfg.criterion_id,
@@ -101,7 +106,13 @@ def calculate_employee_kpi(employee_id: int, period_id: int, db: Session) -> dic
             "has_entry": entry is not None,
         })
 
-    base_score = round(total_weighted / total_weight, 2) if total_weight > 0 else 0.0
+    # Per-team normalization mode: "only entered criteria" avoids punishing
+    # partially-scored employees with zeros for missing entries.
+    normalize_entered = any(getattr(c, "normalize_over_entered", False) for c in configs)
+    if normalize_entered and entered_weight > 0:
+        base_score = round(entered_weighted / entered_weight, 2)
+    else:
+        base_score = round(total_weighted / total_weight, 2) if total_weight > 0 else 0.0
 
     # ── Blend peer-review + goal achievement into the final score ──
     blend_cfg = db.query(TeamScoreBlend).filter(TeamScoreBlend.team_id == employee.team_id).first()
@@ -144,6 +155,7 @@ def calculate_employee_kpi(employee_id: int, period_id: int, db: Session) -> dic
         },
         "breakdown": {
             "total_weight": total_weight,
+            "normalize_over_entered": normalize_entered,
             "criteria": breakdown,
             "blend": {
                 "base_score": base_score,

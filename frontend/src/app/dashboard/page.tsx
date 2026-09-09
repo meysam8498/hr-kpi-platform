@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Building2, IdCard, Users, Search, BellRing, CheckCircle2, ClipboardPen, Star, ArrowLeft, Megaphone, ClipboardCheck, Target } from 'lucide-react'
 import AppLayout from '@/components/Layout'
 import { teamsApi, employeesApi, kpiApi, notificationsApi, dashboardApi } from '@/lib/api'
-import type { Team, Employee, ReportingPeriod, MyTasksPayload, MyTask } from '@/lib/api'
+import type { Team, Employee, ReportingPeriod, MyTasksPayload, MyTask, TeamOverviewPayload } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { gregorianToJalaliStr, toPersianNums } from '@/lib/jalali'
 import { Avatar, CountUp, EmptyState, TableSkeleton, CardsSkeleton } from '@/components/ui'
@@ -31,11 +31,16 @@ export default function DashboardPage() {
   const [teamTrends, setTeamTrends] = useState<Record<number, number[]>>({})
   const [showAllEmployees, setShowAllEmployees] = useState(false)
   const [myTasks, setMyTasks] = useState<MyTasksPayload | null>(null)
+  const [teamOverview, setTeamOverview] = useState<TeamOverviewPayload | null>(null)
   const PREVIEW_COUNT = 8
 
   useEffect(() => {
     dashboardApi.myTasks().then(setMyTasks).catch(() => setMyTasks(null))
-  }, [])
+    // Compact multi-team strip — managers/admin/HR only (endpoint 403s employees)
+    if (me && me.role !== 'employee') {
+      dashboardApi.teamOverview().then(setTeamOverview).catch(() => setTeamOverview(null))
+    }
+  }, [me?.id])
 
   const sendReminder = async () => {
     if (!activePeriod || remindState === 'busy') return
@@ -320,6 +325,61 @@ export default function DashboardPage() {
                   description="حساب شما به پرونده کارمندی متصل نیست؛ فقط وظایف مدیریتی‌تان اینجا دیده می‌شود."
                 />
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Compact team-overview strip (managers/admin/HR) ─── */}
+        {teamOverview && teamOverview.teams.length > 0 && (
+          <div className="card" style={{ padding: '16px 20px', marginTop: 24 }}>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 8, marginBottom: 10 }}>
+              <div className="card-header-title" style={{ fontSize: '0.82rem' }}>
+                <span className="card-header-icon"><Building2 size={14} /></span>
+                نمای تیم‌های شما
+                {teamOverview.period && (
+                  <span style={{ fontWeight: 400, fontSize: '0.68rem', color: 'var(--text-tertiary)', marginRight: 6 }}>
+                    دوره: {teamOverview.period.name}
+                  </span>
+                )}
+              </div>
+              <Link href="/team-overview" className="text-xs" style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}>
+                نمای کامل <ArrowLeft size={11} style={{ display: 'inline' }} />
+              </Link>
+            </div>
+            <div className="flex gap-2.5" style={{ overflowX: 'auto', paddingBottom: 4 }}>
+              {teamOverview.teams.map(t => (
+                <Link
+                  key={t.team_id}
+                  href="/team-overview"
+                  style={{
+                    flexShrink: 0, minWidth: 150, maxWidth: 180, padding: '10px 14px',
+                    borderRadius: 12, border: '1px solid var(--border-primary)', background: 'var(--surface-2)',
+                    textDecoration: 'none', transition: 'border-color 0.15s ease',
+                  }}
+                >
+                  <div style={{
+                    fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 4,
+                  }}>
+                    {t.team_name}
+                  </div>
+                  <div className="flex items-center justify-between" style={{ gap: 6 }}>
+                    <span style={{
+                      fontSize: '0.95rem', fontWeight: 800,
+                      color: t.average === null ? 'var(--text-tertiary)'
+                        : t.average >= 80 ? 'var(--accent-success)'
+                          : t.average >= 70 ? 'var(--accent-info)'
+                            : t.average >= 60 ? 'var(--accent-warning)'
+                              : 'var(--accent-danger)',
+                    }}>
+                      {t.average !== null ? toPersianNums(t.average.toFixed(1)) : '—'}
+                    </span>
+                    <span style={{ fontSize: '0.64rem', color: 'var(--text-tertiary)' }}>
+                      {toPersianNums(t.member_count)} نفر
+                    </span>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         )}

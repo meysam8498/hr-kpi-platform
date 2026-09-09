@@ -3,7 +3,7 @@
  * Bump APP_VERSION on every release; add an entry to CHANGELOG (newest first).
  * The About page renders both; the footer/navbar can import APP_VERSION.
  */
-export const APP_VERSION = '1.10.0'
+export const APP_VERSION = '1.11.0'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.11.0',
+    date: '۱۴۰۵/۰۶/۱۹',
+    title: 'نمای کلی تیم‌ها + سخت‌گیری بیشتر در امنیت و داده نمونه',
+    items: [
+      'صفحه «نمای کلی تیم‌ها»: مقایسه میانگین KPI همه تیم‌های تحت مدیریت به‌صورت کارت‌های کنار هم با برترین و پایین‌ترین نفر',
+      'تأمین امنیت کامل: دسترسی به طرح‌های بهبود (PIP) و اعلان‌ها بدون ورود مسدود شد',
+      'مدیر تیم فقط طرح بهبود، هدف و خلاصه ارزیابی ۳۶۰ اعضای تیم‌های خودش را می‌بیند',
+      '۱۰ تست جدید برای نقاط دسترسی حساس — مجموعاً ۳۷ تست خودکار',
+      'دوره نمونه بسته‌شده با نمرات محاسبه‌شده در نصب تازه به‌صورت خودکار ساخته می‌شود (برای تست فیلتر تاریخ و مقایسه دوره‌ها)',
+    ],
+  },
   {
     version: '1.10.0',
     date: '۱۴۰۵/۰۶/۱۸',

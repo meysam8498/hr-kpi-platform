@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Goal, Employee, ReportingPeriod, KPIResult, User
 from ..schemas import GoalCreate, GoalUpdate, GoalOut
-from ..auth import get_current_user, require_manager_plus, require_admin_or_hr
+from ..auth import get_current_user, require_manager_plus, require_admin_or_hr, can_touch_employee
 
 router = APIRouter(prefix="/api/goals", tags=["Goals"])
 
@@ -43,10 +43,12 @@ def list_goals(employee_id: int = None, period_id: int = None, db: Session = Dep
 
 
 @router.post("/", response_model=GoalOut, status_code=201)
-def create_goal(request: GoalCreate, db: Session = Depends(get_db), _: User = Depends(require_manager_plus)):
+def create_goal(request: GoalCreate, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     emp = db.query(Employee).filter(Employee.id == request.employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
+    if user.role == "manager" and not can_touch_employee(user, emp):
+        raise HTTPException(status_code=403, detail="این کارمند در محدوده دسترسی شما نیست")
     period = db.query(ReportingPeriod).filter(ReportingPeriod.id == request.period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="دوره یافت نشد")

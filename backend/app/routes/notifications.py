@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 
 
 @router.get("/", response_model=list[NotificationOut])
-def list_notifications(unread_only: bool = False, db: Session = Depends(get_db)):
+def list_notifications(unread_only: bool = False, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     query = db.query(Notification).order_by(Notification.created_at.desc())
     if unread_only:
         query = query.filter(Notification.is_read == False)
@@ -23,7 +23,7 @@ def list_notifications(unread_only: bool = False, db: Session = Depends(get_db))
 
 
 @router.get("/unread-count")
-def unread_count(db: Session = Depends(get_db)):
+def unread_count(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     count = db.query(func.count(Notification.id)).filter(Notification.is_read == False).scalar()
     return {"count": count}
 
@@ -41,7 +41,7 @@ def create_notification(request: NotificationCreate, db: Session = Depends(get_d
 
 
 @router.put("/{notif_id}/read")
-def mark_read(notif_id: int, db: Session = Depends(get_db)):
+def mark_read(notif_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     notif = db.query(Notification).filter(Notification.id == notif_id).first()
     if not notif:
         raise HTTPException(status_code=404, detail="اعلان یافت نشد")
@@ -51,14 +51,14 @@ def mark_read(notif_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/read-all")
-def mark_all_read(db: Session = Depends(get_db)):
+def mark_all_read(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     db.query(Notification).filter(Notification.is_read == False).update({"is_read": True})
     db.commit()
     return {"message": "همه اعلان‌ها خوانده شد"}
 
 
 @router.delete("/{notif_id}")
-def delete_notification(notif_id: int, db: Session = Depends(get_db)):
+def delete_notification(notif_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     notif = db.query(Notification).filter(Notification.id == notif_id).first()
     if not notif:
         raise HTTPException(status_code=404, detail="اعلان یافت نشد")

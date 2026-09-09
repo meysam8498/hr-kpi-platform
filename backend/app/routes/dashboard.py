@@ -172,3 +172,71 @@ def my_tasks(db: Session = Depends(get_db), user: User = Depends(get_current_use
         "own_report": own_report,
         "hr_notice": "برای دوره بعدی، وظایف و اطلاعات جدید از طرف منابع انسانی به شما اطلاع‌رسانی می‌شود.",
     }
+
+
+# ─── Manager multi-team overview ────────────────────────────────
+@router.get("/team-overview")
+def team_overview(period_id: int = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """KPI averages for every team the user may manage, side by side.
+
+    admin/HR: all teams. manager (or tick-granted user): their teams only.
+    Employees get 403 — this is a management view.
+    """
+    from ..auth import visible_team_ids, is_hr_plus, can_touch_employee
+    from ..models import Team, KPIResult
+
+    if user.role == "employee":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="این بخش مخصوص مدیران است")
+
+    period = None
+    if period_id:
+        period = db.query(ReportingPeriod).filter(ReportingPeriod.id == period_id).first()
+    if not period:
+        period = _active_period(db)
+    if not period:
+        return {"period": None, "teams": []}
+
+    teams_q = db.query(Team)
+    if not is_hr_plus(user):
+        tids = visible_team_ids(user) or []
+        if not tids:
+            return {"period": {"id": period.id, "name": period.name}, "teams": []}
+        teams_q = teams_q.filter(Team.id.in_(tids))
+    teams = teams_q.order_by(Team.id).all()
+
+    out = []
+    for t in teams:
+        members = db.query(Employee).filter(
+            Employee.team_id == t.id, Employee.is_archived == False,  # noqa: E712
+        ).all()
+        member_ids = [m.id for m in members]
+        results = (
+            db.query(KPIResult)
+            .filter(KPIResult.period_id == period.id, KPIResult.employee_id.in_(member_ids))
+            .all()
+            if member_ids else []
+        )
+        scores = [r.final_score for r in results]
+        avg = round(sum(scores) / len(scores), 1) if scores else None
+        top = max(results, key=lambda r: r.final_score) if results else None
+        low = min(results, key=lambda r: r.final_score) if results else None
+        def _name(eid):
+            m = next((m for m in members if m.id == eid), None)
+            return m.full_name if m else None
+        below = sum(1 for s in scores if s < 60)
+        out.append({
+            "team_id": t.id,
+            "team_name": t.name,
+            "member_count": len(members),
+            "scored_count": len(scores),
+            "average": avg,
+            "top": {"name": _name(top.employee_id), "score": top.final_score} if top else None,
+            "lowest": {"name": _name(low.employee_id), "score": low.final_score} if low else None,
+            "below_60": below,
+        })
+
+    return {
+        "period": {"id": period.id, "name": period.name},
+        "teams": out,
+    }

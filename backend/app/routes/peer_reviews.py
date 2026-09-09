@@ -150,6 +150,10 @@ def delete_review(review_id: int, db: Session = Depends(get_db), user: User = De
 def review_summary(reviewee_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     """Average peer scores for one employee in one period.
     Managers/admin/HR only — employees must NOT see their 360 summary."""
+    if user.role == "manager":
+        emp = db.query(Employee).filter(Employee.id == reviewee_id).first()
+        if emp and not can_touch_employee(user, emp):
+            raise HTTPException(status_code=403, detail="این کارمند در محدوده دسترسی شما نیست")
     reviews = db.query(PeerReview).filter(
         PeerReview.reviewee_id == reviewee_id,
         PeerReview.period_id == period_id,

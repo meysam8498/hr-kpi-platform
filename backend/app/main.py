@@ -166,11 +166,93 @@ def seed_default_users():
         db.close()
 
 
+def seed_demo_period_with_scores():
+    """Ensure a second, closed reporting period exists with calculated
+    scores for at least a few employees — so date-range filters and
+    comparison features are demonstrable on a fresh install.
+
+    Idempotent: only seeds when fewer than two periods exist. Skips
+    quietly on databases that already have real data.
+    """
+    from .models import KPIEntry, KPIResult
+    from .kpi_engine import calculate_and_store
+    import random
+
+    db = SessionLocal()
+    try:
+        periods = db.query(ReportingPeriod).order_by(ReportingPeriod.start_date).all()
+        if len(periods) >= 2:
+            return  # real data or already seeded
+
+        # Only seed into an obviously empty/demo database
+        employees = db.query(Employee).filter(Employee.is_archived == False).all()
+        if not employees:
+            return
+
+        # Where does the existing (or just-seeded) period sit in time?
+        existing = periods[0] if periods else None
+        if existing:
+            base_y, base_m = existing.start_date.year, existing.start_date.month
+            active_is_existing = True
+        else:
+            today = date.today()
+            base_y, base_m = today.year, today.month
+            active_is_existing = False
+
+        # Previous quarter as the closed demo period
+        def _prev_quarter(y, m):
+            return (y - 1, 10) if m <= 3 else (y, ((m - 1) // 3) * 3 - 2)
+
+        py, pm = _prev_quarter(base_y, base_m)
+        pm_end = pm + 2
+        demo = ReportingPeriod(
+            name="دوره نمونه (بسته‌شده)", period_type="quarterly",
+            start_date=date(py, pm, 1),
+            end_date=date(py, pm_end, 28 if pm_end in (4, 6, 9, 11) else 31),
+            is_active=False,  # closed — the other period stays the active one
+        )
+        db.add(demo)
+        db.commit()
+        db.refresh(demo)
+
+        # Deterministic pseudo-random scores for a believable spread
+        rng = random.Random(1405)
+        criteria = db.query(KPICriterion).all()
+        scored = 0
+        for emp in employees:
+            cfgs = db.query(TeamKPIConfig).filter(TeamKPIConfig.team_id == emp.team_id).all()
+            use = cfgs if cfgs else [(type("C", (), {"criterion_id": c.id})()) for c in criteria[:3]]
+            for cfg in use:
+                db.add(KPIEntry(
+                    employee_id=emp.id, period_id=demo.id,
+                    criterion_id=cfg.criterion_id,
+                    score=rng.randint(55, 98),
+                    comment=None,
+                ))
+            scored += 1
+        db.commit()
+
+        # Calculate results so reports/comparisons have data
+        for emp in employees:
+            try:
+                calculate_and_store(emp.id, demo.id, db)
+            except Exception:
+                db.rollback()
+        print(f"[OK] Demo period seeded: «{demo.name}» with scores for {scored} employees.")
+
+    except Exception as e:
+        db.rollback()
+        print(f"[WARN] Demo period seed error: {e}")
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     seed_default_data()
     seed_default_users()
+    seed_demo_period_with_scores()
     # Auto-archive periods >3 months old
     from .routes.kpi import run_auto_archive
     db = SessionLocal()

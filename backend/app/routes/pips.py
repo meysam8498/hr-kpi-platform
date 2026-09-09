@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from ..database import get_db
-from ..models import PIP, Employee, Team, KPIResult, ReportingPeriod
+from ..models import PIP, Employee, Team, KPIResult, ReportingPeriod, User
 from ..schemas import PIPCreate, PIPUpdate, PIPOut
+from ..auth import get_current_user, require_manager_plus, require_admin_or_hr, can_touch_employee
 
 router = APIRouter(prefix="/api/pips", tags=["PIPs"])
 
@@ -33,19 +34,43 @@ def _pip_out(pip: PIP, db: Session) -> PIPOut:
 
 
 @router.get("/", response_model=list[PIPOut])
-def list_pips(employee_id: int = None, db: Session = Depends(get_db)):
+def list_pips(employee_id: int = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Employees see only their own PIPs; managers their teams'; admin/HR all."""
     query = db.query(PIP)
+    if user.role == "employee":
+        if user.employee_id is None:
+            return []
+        query = query.filter(PIP.employee_id == user.employee_id)
+    elif user.role == "manager":
+        from ..auth import visible_team_ids
+        tids = visible_team_ids(user) or []
+        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id.in_(tids)).all()] if tids else []
+        allowed = set(team_emp_ids)
+        if user.employee_id:
+            allowed.add(user.employee_id)
+        if not allowed:
+            return []
+        query = query.filter(PIP.employee_id.in_(list(allowed)))
     if employee_id:
+        # Scope check on the requested employee_id
+        if user.role == "employee" and (user.employee_id is None or int(employee_id) != int(user.employee_id)):
+            return []
+        if user.role == "manager":
+            emp = db.query(Employee).filter(Employee.id == employee_id).first()
+            if emp and not can_touch_employee(user, emp):
+                return []
         query = query.filter(PIP.employee_id == employee_id)
     pips = query.order_by(PIP.created_at.desc()).all()
     return [_pip_out(p, db) for p in pips]
 
 
 @router.post("/", response_model=PIPOut, status_code=201)
-def create_pip(request: PIPCreate, db: Session = Depends(get_db)):
+def create_pip(request: PIPCreate, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     emp = db.query(Employee).filter(Employee.id == request.employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
+    if user.role == "manager" and not can_touch_employee(user, emp):
+        raise HTTPException(status_code=403, detail="این کارمند در محدوده دسترسی شما نیست")
     pip = PIP(
         employee_id=request.employee_id, title=request.title,
         description=request.description, start_date=request.start_date,
@@ -58,10 +83,14 @@ def create_pip(request: PIPCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{pip_id}", response_model=PIPOut)
-def update_pip(pip_id: int, request: PIPUpdate, db: Session = Depends(get_db)):
+def update_pip(pip_id: int, request: PIPUpdate, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     pip = db.query(PIP).filter(PIP.id == pip_id).first()
     if not pip:
         raise HTTPException(status_code=404, detail="طرح بهبود یافت نشد")
+    if user.role == "manager":
+        emp = db.query(Employee).filter(Employee.id == pip.employee_id).first()
+        if emp and not can_touch_employee(user, emp):
+            raise HTTPException(status_code=403, detail="این طرح متعلق به تیم‌های شما نیست")
     for field, value in request.model_dump(exclude_unset=True).items():
         setattr(pip, field, value)
     db.commit()
@@ -70,7 +99,7 @@ def update_pip(pip_id: int, request: PIPUpdate, db: Session = Depends(get_db)):
 
 
 @router.delete("/{pip_id}")
-def delete_pip(pip_id: int, db: Session = Depends(get_db)):
+def delete_pip(pip_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     pip = db.query(PIP).filter(PIP.id == pip_id).first()
     if not pip:
         raise HTTPException(status_code=404, detail="طرح بهبود یافت نشد")
@@ -80,7 +109,7 @@ def delete_pip(pip_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/check-auto")
-def check_auto_pips(db: Session = Depends(get_db)):
+def check_auto_pips(db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     """Auto-detect employees with <60 in 2 consecutive periods and create PIPs."""
     periods = db.query(ReportingPeriod).order_by(desc(ReportingPeriod.end_date)).all()
     if len(periods) < 2:

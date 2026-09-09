@@ -332,8 +332,26 @@ export interface MyTasksPayload {
   hr_notice: string
 }
 
+export interface TeamOverviewRow {
+  team_id: number
+  team_name: string
+  member_count: number
+  scored_count: number
+  average: number | null
+  top: { name: string; score: number } | null
+  lowest: { name: string; score: number } | null
+  below_60: number
+}
+
+export interface TeamOverviewPayload {
+  period: { id: number; name: string } | null
+  teams: TeamOverviewRow[]
+}
+
 export const dashboardApi = {
   myTasks: () => request<MyTasksPayload>('/api/dashboard/my-tasks'),
+  teamOverview: (periodId?: number) =>
+    request<TeamOverviewPayload>(`/api/dashboard/team-overview${periodId ? `?period_id=${periodId}` : ''}`),
 }
 
 // ─── Custom Report API ───

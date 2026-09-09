@@ -67,6 +67,7 @@ export const NAV_GROUPS: NavGroup[] = [
     roles: ['admin', 'hr', 'manager'],
     items: [
       { href: '/hr', icon: HeartPulse, label: 'داشبورد منابع انسانی', roles: ['admin', 'hr'] },
+      { href: '/team-overview', icon: TrendingUp, label: 'نمای کلی تیم‌ها', roles: ['admin', 'hr', 'manager'] },
       { href: '/reports', icon: BarChart3, label: 'گزارش‌ها', roles: ['admin', 'hr', 'manager'] },
       { href: '/custom-reports', icon: SlidersHorizontal, label: 'گزارش سفارشی', roles: ['admin', 'hr', 'manager'] },
       { href: '/excel', icon: FileSpreadsheet, label: 'اکسل', roles: ['admin', 'hr', 'manager'] },

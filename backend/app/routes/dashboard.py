@@ -84,17 +84,30 @@ def my_tasks(db: Session = Depends(get_db), user: User = Depends(get_current_use
                 "names": [t.full_name for t in pending][:6],
             })
 
-    # ── 3) Scoring pending (managers: own team; anyone with tick grants: those teams) ──
-    if period:
-        team_ids = set(managed_team_ids(user))
-        if user.role == "manager" and user.team_id is not None:
-            team_ids.add(int(user.team_id))
-        # admin/hr are unrestricted, so only surface explicitly granted teams
-        if user.role in ("admin", "hr") and not managed_team_ids(user):
-            team_ids = set()
-        if team_ids:
-            team_emps = db.query(Employee).filter(
-                Employee.team_id.in_(list(team_ids)),
+    # ── 3) Scoring pending ──
+    #   admin/hr without explicit grants → company-wide (they may score everyone)
+    #   admin/hr with grants → granted teams only
+    #   manager → own team + granted teams
+    #   employee role → never a scorer (skip)
+    if period and user.role != "employee":
+        granted = managed_team_ids(user)
+        if user.role in ("admin", "hr"):
+            scope_query = (
+                db.query(Employee).filter(Employee.team_id.in_(granted))
+                if granted else db.query(Employee)
+            )
+        elif user.role == "manager":
+            tids = set(granted)
+            if user.team_id is not None:
+                tids.add(int(user.team_id))
+            scope_query = (
+                db.query(Employee).filter(Employee.team_id.in_(list(tids)))
+                if tids else None
+            )
+        else:
+            scope_query = None
+        if scope_query is not None:
+            team_emps = scope_query.filter(
                 Employee.is_archived == False,  # noqa: E712
             ).all()
             ids = [e.id for e in team_emps]
@@ -106,10 +119,15 @@ def my_tasks(db: Session = Depends(get_db), user: User = Depends(get_current_use
                 ).distinct().all()}
             pending_score = [e for e in team_emps if e.id not in scored]
             if pending_score:
+                company_wide = user.role in ("admin", "hr") and not granted
                 tasks.append({
                     "kind": "scoring",
-                    "title": "امتیازدهی به اعضای تیم",
-                    "description": f"{len(pending_score)} نفر از اعضای تیم‌های شما در دوره «{period.name}» نمره نگرفته‌اند.",
+                    "title": "امتیازدهی به اعضای تیم" if not company_wide else "امتیازدهی کارمندان",
+                    "description": (
+                        f"{len(pending_score)} نفر از {len(team_emps)} کارمند سازمان در دوره «{period.name}» نمره نگرفته‌اند."
+                        if company_wide else
+                        f"{len(pending_score)} نفر از اعضای تیم‌های شما در دوره «{period.name}» نمره نگرفته‌اند."
+                    ),
                     "href": "/scoring",
                     "names": [e.full_name for e in pending_score][:6],
                 })

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Search, Building2, Users, CalendarDays, ListChecks, Filter, BarChart3, Download } from 'lucide-react'
 import AppLayout from '@/components/Layout'
+import SearchBox, { matchesQuery } from '@/components/SearchBox'
+import { toPersianNums } from '@/lib/jalali'
 import JalaliDatePicker from '@/components/JalaliDatePicker'
 import { teamsApi, employeesApi, kpiApi, customReportApi, authApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod, KPICriterion } from '@/lib/api'
@@ -15,6 +17,7 @@ export default function CustomReportsPage() {
   const [report, setReport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [empSearch, setEmpSearch] = useState('')
 
   const [filters, setFilters] = useState({
     team_id: undefined as number | undefined,
@@ -129,9 +132,17 @@ export default function CustomReportsPage() {
 
           {/* Employees */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-bold mb-2" style={{ color: 'var(--text-secondary)' }}><Users size={15} /> کارمندان</label>
-            <div className="flex flex-wrap gap-2">
-              {filteredEmployees.map(emp => (
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <label className="flex items-center gap-2 text-sm font-bold" style={{ color: 'var(--text-secondary)' }}><Users size={15} /> کارمندان</label>
+              <div className="flex items-center gap-2">
+                <SearchBox value={empSearch} onChange={setEmpSearch} placeholder="جستجوی کارمند…" width={170} />
+                {filters.employee_ids.length > 0 && (
+                  <span className="badge badge-primary">{toPersianNums(String(filters.employee_ids.length))} نفر انتخاب</span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2" style={{ maxHeight: 150, overflowY: 'auto' }}>
+              {filteredEmployees.filter(emp => matchesQuery([emp.first_name, emp.last_name, emp.employee_code, emp.position], empSearch)).map(emp => (
                 <button key={emp.id} onClick={() => toggleArrayFilter('employee_ids', emp.id)}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
                   style={{

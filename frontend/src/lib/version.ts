@@ -3,7 +3,7 @@
  * Bump APP_VERSION on every release; add an entry to CHANGELOG (newest first).
  * The About page renders both; the footer/navbar can import APP_VERSION.
  */
-export const APP_VERSION = '1.9.0'
+export const APP_VERSION = '1.9.1'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.9.1',
+    date: '۱۴۰۵/۰۶/۱۸',
+    title: 'رفع نمایش تسک‌های داشبورد و کامل‌سازی گزارش‌گیری',
+    items: [
+      'رفع نداشتن تسک در داشبورد ادمین/منابع انسانی — امتیازدهی سازمانی (X نفر از Y کارمند) اکنون برای همه نقش‌ها نمایش داده می‌شود',
+      'جستجوی کارمند در گزارش سفارشی — پیدا کردن نفر از بین ۵۵ نفر با دو حرف',
+      'لیست کارمندان گزارش سفارشی اسکرول‌پذیر شد و شمارنده انتخاب‌ها اضافه شد',
+    ],
+  },
   {
     version: '1.9.0',
     date: '۱۴۰۵/۰۶/۱۸',

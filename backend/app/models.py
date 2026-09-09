@@ -55,6 +55,12 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="employee")  # admin/hr/manager/employee
     team_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("teams.id"), nullable=True)  # for managers/employees
     employee_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("employees.id"), nullable=True)  # link employee self-view
+    # Granular permissions (admin-assigned, tick-based in the users page):
+    # managed_team_ids — teams this user may score/manage (a person can lead 2 teams)
+    # extra_employee_ids — additional employees this user may score or self-view
+    #   (e.g. an HR manager who is also an employee scores her own team AND herself)
+    managed_team_ids: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON array string, e.g. "[3,7]"
+    extra_employee_ids: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # JSON array string
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)  # forced first-login change
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

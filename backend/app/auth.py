@@ -114,9 +114,14 @@ def require_admin_or_hr(user: User = Depends(get_current_user)) -> User:
 
 
 def require_manager_plus(user: User = Depends(get_current_user)) -> User:
-    if user.role not in ("admin", "hr", "manager"):
-        raise HTTPException(status_code=403, detail="دسترسی به این بخش برای شما مجاز نیست")
-    return user
+    if user.role in ("admin", "hr", "manager"):
+        return user
+    # Tick-based grants also qualify: someone handed a team or specific
+    # employees via the users page may score exactly those (route body
+    # still scopes per-employee via can_touch_employee).
+    if managed_team_ids(user) or extra_employee_ids(user):
+        return user
+    raise HTTPException(status_code=403, detail="دسترسی به این بخش برای شما مجاز نیست")
 
 
 # ─── Scope helpers (call inside route bodies) ─────────────────
@@ -148,3 +153,68 @@ def ensure_own_employee(user: User, employee_id) -> None:
     if user.role == "employee":
         if user.employee_id is None or int(employee_id) != int(user.employee_id):
             raise HTTPException(status_code=403, detail="فقط اطلاعات خودتان در دسترس شماست")
+
+
+# ─── Granular permissions (tick-based, admin-assigned) ────────
+# managed_team_ids / extra_employee_ids let one person hold several
+# hats: e.g. an HR manager who is also an employee scores her team
+# AND herself; a person may lead two teams.
+
+import json as _json
+
+
+def managed_team_ids(user: User) -> list[int]:
+    """Extra teams the user may manage (beyond user.team_id)."""
+    if not user.managed_team_ids:
+        return []
+    try:
+        return [int(t) for t in _json.loads(user.managed_team_ids)]
+    except (ValueError, TypeError):
+        return []
+
+
+def extra_employee_ids(user: User) -> list[int]:
+    """Extra employees the user may score or self-view (beyond employee_id)."""
+    if not user.extra_employee_ids:
+        return []
+    try:
+        return [int(e) for e in _json.loads(user.extra_employee_ids)]
+    except (ValueError, TypeError):
+        return []
+
+
+def can_manage_team(user: User, team_id) -> bool:
+    """True if the user may score/manage members of this team."""
+    if is_hr_plus(user):
+        return True
+    if team_id is None:
+        return False
+    tid = int(team_id)
+    if user.role == "manager" and user.team_id is not None and int(user.team_id) == tid:
+        return True
+    return tid in managed_team_ids(user)
+
+
+def can_touch_employee(user: User, employee) -> bool:
+    """True if the user may score this employee (own team, managed team, or extra grant)."""
+    if is_hr_plus(user):
+        return True
+    if employee is None:
+        return False
+    if user.role == "manager" and user.team_id is not None and employee.team_id is not None \
+            and int(user.team_id) == int(employee.team_id):
+        return True
+    if employee.id in extra_employee_ids(user):
+        return True
+    return can_manage_team(user, employee.team_id)
+
+
+def visible_team_ids(user: User) -> Optional[list[int]]:
+    """Teams whose data the user may see. None = unrestricted (admin/hr)."""
+    if is_hr_plus(user):
+        return None
+    ids: set[int] = set()
+    if user.team_id is not None:
+        ids.add(int(user.team_id))
+    ids.update(managed_team_ids(user))
+    return list(ids) if ids else []

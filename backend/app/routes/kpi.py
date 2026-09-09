@@ -16,6 +16,7 @@ from ..models import (
 from ..auth import (
     get_current_user, require_admin_or_hr, require_manager_plus,
     ensure_team_scope, ensure_employee_in_scope, ensure_own_employee, is_hr_plus,
+    can_touch_employee, can_manage_team, visible_team_ids, extra_employee_ids,
 )
 from ..schemas import (
     KPICriterionCreate, KPICriterionUpdate, KPICriterionOut,
@@ -296,14 +297,19 @@ def delete_period(period_id: int, db: Session = Depends(get_db), _: User = Depen
 @router.get("/entries", response_model=list[KPIEntryOut])
 def list_entries(employee_id: int = None, period_id: int = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     query = db.query(KPIEntry)
-    # Employees may only see their own entries; managers only their team's
+    # Employees may only see their own entries; managers only their teams'
     if user.role == "employee":
-        if user.employee_id is None:
+        allowed_ids = set([user.employee_id] if user.employee_id else []) | set(extra_employee_ids(user))
+        if not allowed_ids:
             return []
-        query = query.filter(KPIEntry.employee_id == user.employee_id)
-    elif user.role == "manager" and user.team_id is not None:
-        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id == user.team_id).all()]
-        query = query.filter(KPIEntry.employee_id.in_(team_emp_ids))
+        query = query.filter(KPIEntry.employee_id.in_(list(allowed_ids)))
+    elif user.role == "manager":
+        team_ids = visible_team_ids(user) or []
+        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id.in_(team_ids)).all()] if team_ids else []
+        allowed = set(team_emp_ids) | set(extra_employee_ids(user))
+        if not allowed:
+            return []
+        query = query.filter(KPIEntry.employee_id.in_(list(allowed)))
     if employee_id:
         query = query.filter(KPIEntry.employee_id == employee_id)
     if period_id:
@@ -332,8 +338,8 @@ def batch_score(employee_id: int, period_id: int, scores: list[KPIScoreItem], db
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
-    if user.role == "manager" and user.team_id is not None and employee.team_id != user.team_id:
-        raise HTTPException(status_code=403, detail="فقط می‌توانید به اعضای تیم خودتان نمره بدهید")
+    if not can_touch_employee(user, employee):
+        raise HTTPException(status_code=403, detail="فقط می‌توانید به افرادِ در محدوده دسترسی خودتان نمره بدهید")
     period = db.query(ReportingPeriod).filter(ReportingPeriod.id == period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="دوره یافت نشد")
@@ -377,7 +383,7 @@ def batch_score(employee_id: int, period_id: int, scores: list[KPIScoreItem], db
 @router.get("/export/{team_id}/{period_id}")
 def export_excel(team_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     """Download Excel scoring sheet for a team."""
-    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+    if not can_manage_team(user, team_id):
         raise HTTPException(status_code=403, detail="فقط فایل اکسل تیم خودتان در دسترس شماست")
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
@@ -405,7 +411,7 @@ def export_excel(team_id: int, period_id: int, db: Session = Depends(get_db), us
 @router.post("/import/{team_id}/{period_id}")
 async def import_excel(team_id: int, period_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     """Upload filled Excel scoring sheet to update scores."""
-    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+    if not can_manage_team(user, team_id):
         raise HTTPException(status_code=403, detail="فقط فایل اکسل تیم خودتان مجاز است")
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
@@ -431,7 +437,7 @@ def calculate_company(period_id: int, db: Session = Depends(get_db), _: User = D
 
 @router.post("/calculate/team/{team_id}/{period_id}")
 def calculate_team(team_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
-    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+    if not can_manage_team(user, team_id):
         raise HTTPException(status_code=403, detail="فقط محاسبه تیم خودتان مجاز است")
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
@@ -444,8 +450,8 @@ def calculate_team(team_id: int, period_id: int, db: Session = Depends(get_db), 
 def calculate_employee(employee_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     if user.role == "manager":
         emp = db.query(Employee).filter(Employee.id == employee_id).first()
-        if emp and user.team_id is not None and emp.team_id != user.team_id:
-            raise HTTPException(status_code=403, detail="فقط اعضای تیم خودتان مجاز است")
+        if emp and not can_touch_employee(user, emp):
+            raise HTTPException(status_code=403, detail="فقط افرادِ در محدوده دسترسی شما مجاز است")
     result = calculate_and_store(employee_id, period_id, db)
     if result is None:
         raise HTTPException(status_code=400, detail="تنظیمات KPI برای تیم یافت نشد")
@@ -465,14 +471,16 @@ def calculate_employee(employee_id: int, period_id: int, db: Session = Depends(g
 
 @router.get("/results/{employee_id}", response_model=list[KPIResultOut])
 def get_employee_results(employee_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """KPI results — employees see ONLY their own; managers see their team; admin/HR all."""
+    """KPI results — employees see ONLY their own; managers see their teams; admin/HR all."""
     if user.role == "employee":
-        if user.employee_id is None or int(employee_id) != int(user.employee_id):
+        allowed = {user.employee_id} if user.employee_id else set()
+        allowed.update(extra_employee_ids(user))
+        if int(employee_id) not in allowed:
             raise HTTPException(status_code=403, detail="فقط نتایج خودتان در دسترس شماست")
     elif user.role == "manager":
         emp = db.query(Employee).filter(Employee.id == employee_id).first()
-        if emp and user.team_id is not None and emp.team_id != user.team_id:
-            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
+        if emp and not can_touch_employee(user, emp):
+            raise HTTPException(status_code=403, detail="این کارمند در محدوده دسترسی شما نیست")
     results = db.query(KPIResult).filter(KPIResult.employee_id == employee_id).all()
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
     team = db.query(Team).filter(Team.id == emp.team_id).first() if emp else None
@@ -493,18 +501,20 @@ def get_employee_results(employee_id: int, db: Session = Depends(get_db), user: 
 @router.get("/history/{employee_id}")
 def employee_history(employee_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     if user.role == "employee":
-        if user.employee_id is None or int(employee_id) != int(user.employee_id):
-            raise HTTPException(status_code=403, detail="فکت تاریخچه خودتان در دسترس شماست")
+        allowed = {user.employee_id} if user.employee_id else set()
+        allowed.update(extra_employee_ids(user))
+        if int(employee_id) not in allowed:
+            raise HTTPException(status_code=403, detail="فقط تاریخچه خودتان در دسترس شماست")
     elif user.role == "manager":
         emp = db.query(Employee).filter(Employee.id == employee_id).first()
-        if emp and user.team_id is not None and emp.team_id != user.team_id:
-            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
+        if emp and not can_touch_employee(user, emp):
+            raise HTTPException(status_code=403, detail="این کارمند در محدوده دسترسی شما نیست")
     return get_employee_history(employee_id, db)
 
 
 @router.get("/reports/team/{team_id}/{period_id}")
 def team_report(team_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
-    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
+    if not can_manage_team(user, team_id):
         raise HTTPException(status_code=403, detail="فقط گزارش تیم خودتان در دسترس شماست")
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
@@ -541,8 +551,8 @@ def compare_periods(employee_id: int, period_a: int, period_b: int, db: Session 
     """Side-by-side comparison of one employee across two periods."""
     if user.role == "manager":
         emp = db.query(Employee).filter(Employee.id == employee_id).first()
-        if emp and user.team_id is not None and emp.team_id != user.team_id:
-            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
+        if emp and not can_touch_employee(user, emp):
+            raise HTTPException(status_code=403, detail="این کارمند در محدوده دسترسی شما نیست")
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")

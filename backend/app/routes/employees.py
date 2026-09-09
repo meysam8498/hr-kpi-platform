@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Employee, Team, User
-from ..auth import require_admin_or_hr, get_current_user
+from ..auth import require_admin_or_hr, get_current_user, visible_team_ids, extra_employee_ids, can_touch_employee
 from ..schemas import (EmployeeCreate, EmployeeUpdate, EmployeeOut, BulkImportItem,
                        BulkImportItemByName, BulkImportResult)
 from .audit import log_audit
@@ -41,14 +41,21 @@ def list_employees(
     """
     query = db.query(Employee)
     if user.role == "employee":
+        allowed_ids = set([user.employee_id] if user.employee_id else []) | set(extra_employee_ids(user))
         if user.team_id is not None:
             query = query.filter(Employee.team_id == user.team_id)
-        elif user.employee_id is not None:
-            query = query.filter(Employee.id == user.employee_id)
+            if allowed_ids:
+                query = query.filter((Employee.team_id == user.team_id) | (Employee.id.in_(list(allowed_ids))))
+        elif allowed_ids:
+            query = query.filter(Employee.id.in_(list(allowed_ids)))
         else:
             return []
-    elif user.role == "manager" and user.team_id is not None:
-        query = query.filter(Employee.team_id == user.team_id)
+    elif user.role == "manager":
+        tids = visible_team_ids(user) or []
+        if tids:
+            query = query.filter(Employee.team_id.in_(tids))
+        else:
+            return []
     elif team_id:
         query = query.filter(Employee.team_id == team_id)
     if not archived:
@@ -69,14 +76,19 @@ def list_all_employees(
     """List ALL employees including archived (same role scoping)."""
     query = db.query(Employee)
     if user.role == "employee":
+        allowed_ids = set([user.employee_id] if user.employee_id else []) | set(extra_employee_ids(user))
         if user.team_id is not None:
-            query = query.filter(Employee.team_id == user.team_id)
-        elif user.employee_id is not None:
-            query = query.filter(Employee.id == user.employee_id)
+            query = query.filter((Employee.team_id == user.team_id) | (Employee.id.in_(list(allowed_ids))) if allowed_ids else Employee.team_id == user.team_id)
+        elif allowed_ids:
+            query = query.filter(Employee.id.in_(list(allowed_ids)))
         else:
             return []
-    elif user.role == "manager" and user.team_id is not None:
-        query = query.filter(Employee.team_id == user.team_id)
+    elif user.role == "manager":
+        tids = visible_team_ids(user) or []
+        if tids:
+            query = query.filter(Employee.team_id.in_(tids))
+        else:
+            return []
     elif team_id:
         query = query.filter(Employee.team_id == team_id)
     employees = query.order_by(Employee.employee_code).all()
@@ -140,10 +152,13 @@ def get_employee(emp_id: int, db: Session = Depends(get_db), user: User = Depend
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="کارمند یافت نشد")
-    if user.role == "employee" and (user.employee_id is None or int(emp_id) != int(user.employee_id)):
-        raise HTTPException(status_code=403, detail="فقط اطلاعات خودتان در دسترس شماست")
-    if user.role == "manager" and user.team_id is not None and emp.team_id != user.team_id:
-        raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
+    if user.role == "employee":
+        allowed = {user.employee_id} if user.employee_id else set()
+        allowed.update(extra_employee_ids(user))
+        if int(emp_id) not in allowed:
+            raise HTTPException(status_code=403, detail="فقط اطلاعات خودتان در دسترس شماست")
+    if user.role == "manager" and not can_touch_employee(user, emp):
+        raise HTTPException(status_code=403, detail="این کارمند در محدوده دسترسی شما نیست")
     return _emp_out(emp, db)
 
 

@@ -1,6 +1,7 @@
 """
 Auth routes — login, current user, and user management (admin only).
 """
+import json as _json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -31,6 +32,9 @@ class UserCreate(BaseModel):
     role: str = "employee"  # admin/hr/manager/employee
     team_id: Optional[int] = None
     employee_id: Optional[int] = None
+    # Granular tick-based permissions:
+    managed_team_ids: list[int] = []   # teams the user may score/manage
+    extra_employee_ids: list[int] = [] # extra employees the user may score/self-view
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
@@ -39,6 +43,8 @@ class UserUpdate(BaseModel):
     team_id: Optional[int] = None
     employee_id: Optional[int] = None
     is_active: Optional[bool] = None
+    managed_team_ids: Optional[list[int]] = None
+    extra_employee_ids: Optional[list[int]] = None
 
 class UserOut(BaseModel):
     id: int
@@ -47,9 +53,27 @@ class UserOut(BaseModel):
     role: str
     team_id: Optional[int]
     employee_id: Optional[int]
+    managed_team_ids: list[int] = []
+    extra_employee_ids: list[int] = []
     is_active: bool
     must_change_password: bool = False
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_user(cls, u: "User") -> "UserOut":
+        import json as _json
+        def _parse(raw):
+            try:
+                return [int(x) for x in _json.loads(raw)] if raw else []
+            except (ValueError, TypeError):
+                return []
+        return cls(
+            id=u.id, username=u.username, full_name=u.full_name, role=u.role,
+            team_id=u.team_id, employee_id=u.employee_id,
+            managed_team_ids=_parse(u.managed_team_ids),
+            extra_employee_ids=_parse(u.extra_employee_ids),
+            is_active=u.is_active, must_change_password=bool(u.must_change_password),
+        )
 
 class TokenOut(BaseModel):
     token: str
@@ -71,12 +95,12 @@ def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=403, detail="حساب شما غیرفعال شده است")
     clear_failed_logins(client_ip)
-    return {"token": create_token(user), "user": user}
+    return {"token": create_token(user), "user": UserOut.from_user(user)}
 
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
-    return user
+    return UserOut.from_user(user)
 
 
 class ChangePasswordRequest(BaseModel):
@@ -102,7 +126,7 @@ def change_password(request: ChangePasswordRequest, db: Session = Depends(get_db
 
 @router.get("/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
-    return db.query(User).order_by(User.role, User.username).all()
+    return [UserOut.from_user(u) for u in db.query(User).order_by(User.role, User.username).all()]
 
 
 @router.post("/users", response_model=UserOut, status_code=201)
@@ -118,11 +142,13 @@ def create_user(request: UserCreate, db: Session = Depends(get_db), _: User = De
         role=request.role,
         team_id=request.team_id,
         employee_id=request.employee_id,
+        managed_team_ids=_json.dumps(request.managed_team_ids) if request.managed_team_ids else None,
+        extra_employee_ids=_json.dumps(request.extra_employee_ids) if request.extra_employee_ids else None,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return UserOut.from_user(user)
 
 
 @router.put("/users/{user_id}", response_model=UserOut)
@@ -138,11 +164,17 @@ def update_user(user_id: int, request: UserUpdate, db: Session = Depends(get_db)
             raise HTTPException(status_code=400, detail="نقش حساب اصلی مدیر سیستم قابل تغییر نیست")
     if "password" in data and data["password"]:
         user.password_hash = hash_password(data.pop("password"))
+    if "managed_team_ids" in data:
+        v = data.pop("managed_team_ids")
+        user.managed_team_ids = _json.dumps(v) if v else None
+    if "extra_employee_ids" in data:
+        v = data.pop("extra_employee_ids")
+        user.extra_employee_ids = _json.dumps(v) if v else None
     for field, value in data.items():
         setattr(user, field, value)
     db.commit()
     db.refresh(user)
-    return user
+    return UserOut.from_user(user)
 
 
 @router.delete("/users/{user_id}")

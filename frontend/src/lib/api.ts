@@ -546,14 +546,22 @@ export interface AuthUserRow {
   team_id: number | null
   employee_id: number | null
   is_active: boolean
+  managed_team_ids: number[]
+  extra_employee_ids: number[]
 }
 
 export const authUsersApi = {
   list: () => request<AuthUserRow[]>('/api/auth/users'),
-  create: (data: { username: string; password: string; full_name: string; role: string; team_id?: number | null; employee_id?: number | null }) =>
-    request<AuthUserRow>('/api/auth/users', { method: 'POST', json: data }),
-  update: (id: number, data: { full_name?: string; password?: string; role?: string; team_id?: number | null; employee_id?: number | null; is_active?: boolean }) =>
-    request<AuthUserRow>(`/api/auth/users/${id}`, { method: 'PUT', json: data }),
+  create: (data: {
+    username: string; password: string; full_name: string; role: string
+    team_id?: number | null; employee_id?: number | null
+    managed_team_ids?: number[]; extra_employee_ids?: number[]
+  }) => request<AuthUserRow>('/api/auth/users', { method: 'POST', json: data }),
+  update: (id: number, data: {
+    full_name?: string; password?: string; role?: string
+    team_id?: number | null; employee_id?: number | null; is_active?: boolean
+    managed_team_ids?: number[]; extra_employee_ids?: number[]
+  }) => request<AuthUserRow>(`/api/auth/users/${id}`, { method: 'PUT', json: data }),
   remove: (id: number) => request<{ message: string }>(`/api/auth/users/${id}`, { method: 'DELETE' }),
 }
 

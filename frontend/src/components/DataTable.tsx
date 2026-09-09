@@ -143,7 +143,7 @@ export default function DataTable<T>({
       {/* Desktop table */}
       <div className="hidden md:block">{table}</div>
       {/* Mobile cards */}
-      <div className="md:hidden" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
+      <div className="md:hidden mobile-cards-wrap">
         {sorted.map(row => (
           <div
             key={rowKey(row)}

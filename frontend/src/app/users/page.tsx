@@ -22,9 +22,66 @@ interface UserRow {
   team_id: number | null
   employee_id: number | null
   is_active: boolean
+  managed_team_ids: number[]
+  extra_employee_ids: number[]
 }
 
 const ROLE_ORDER = ['admin', 'hr', 'manager', 'employee'] as const
+
+/**
+ * PermissionPicker — tick-based grant list (teams or employees) with its own
+ * filter box, so finding one of 55 employees takes two keystrokes.
+ */
+function PermissionPicker({
+  title, hint, options, selected, onChange, labelOf,
+}: {
+  title: string
+  hint: string
+  options: { id: number }[]
+  selected: number[]
+  onChange: (ids: number[]) => void
+  labelOf: (o: { id: number }) => string
+}) {
+  const [q, setQ] = useState('')
+  const filtered = options.filter(o => matchesQuery([labelOf(o)], q))
+  const toggle = (id: number) =>
+    onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
+  return (
+    <div className="rounded-xl p-3" style={{ border: '1px solid var(--border-primary)', background: 'var(--surface-2)' }}>
+      <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+        <div>
+          <span className="text-xs font-bold">{title}</span>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{hint}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <SearchBox value={q} onChange={setQ} placeholder="فیلتر…" width={140} />
+          {selected.length > 0 && (
+            <span className="badge badge-primary">{selected.length} انتخاب</span>
+          )}
+        </div>
+      </div>
+      <div style={{ maxHeight: 150, overflowY: 'auto' }} className="space-y-1">
+        {filtered.length === 0 ? (
+          <p className="text-xs p-2" style={{ color: 'var(--text-tertiary)' }}>موردی یافت نشد</p>
+        ) : filtered.map(o => (
+          <label
+            key={o.id}
+            className="flex items-center gap-2 p-1.5 rounded-lg cursor-pointer text-xs"
+            style={{ background: selected.includes(o.id) ? 'var(--surface-3)' : 'transparent' }}
+          >
+            <input
+              type="checkbox"
+              checked={selected.includes(o.id)}
+              onChange={() => toggle(o.id)}
+              style={{ accentColor: 'var(--accent-primary)', width: 14, height: 14 }}
+            />
+            <span>{labelOf(o)}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function UsersPage() {
   const { user: me } = useAuth()
@@ -43,6 +100,8 @@ export default function UsersPage() {
   const [role, setRole] = useState<UserRow['role']>('employee')
   const [teamId, setTeamId] = useState<number | 0>(0)
   const [employeeId, setEmployeeId] = useState<number | 0>(0)
+  const [permTeams, setPermTeams] = useState<number[]>([])
+  const [permEmployees, setPermEmployees] = useState<number[]>([])
 
   // Edit modal
   const [editUser, setEditUser] = useState<UserRow | null>(null)
@@ -50,6 +109,8 @@ export default function UsersPage() {
   const [editRole, setEditRole] = useState<UserRow['role']>('employee')
   const [editTeamId, setEditTeamId] = useState<number | 0>(0)
   const [editPassword, setEditPassword] = useState('')
+  const [editPermTeams, setEditPermTeams] = useState<number[]>([])
+  const [editPermEmployees, setEditPermEmployees] = useState<number[]>([])
 
   const load = () => {
     Promise.all([authUsersApi.list(), teamsApi.list(), employeesApi.list()])
@@ -66,10 +127,13 @@ export default function UsersPage() {
         username, password, full_name: fullName, role,
         team_id: teamId || null,
         employee_id: employeeId || null,
+        managed_team_ids: permTeams,
+        extra_employee_ids: permEmployees,
       })
       toast.success(`کاربر «${fullName}» ساخته شد`)
       setUsername(''); setPassword(''); setFullName('')
       setTeamId(0); setEmployeeId(0); setShowForm(false)
+      setPermTeams([]); setPermEmployees([])
       load()
     } catch (e: any) {
       toast.error(e.message || 'خطا در ساخت کاربر')
@@ -79,6 +143,8 @@ export default function UsersPage() {
   const openEdit = (u: UserRow) => {
     setEditUser(u); setEditFullName(u.full_name); setEditRole(u.role)
     setEditTeamId(u.team_id || 0); setEditPassword('')
+    setEditPermTeams(u.managed_team_ids || [])
+    setEditPermEmployees(u.extra_employee_ids || [])
   }
 
   const saveEdit = async () => {
@@ -88,6 +154,8 @@ export default function UsersPage() {
         full_name: editFullName,
         role: editRole,
         team_id: editTeamId || null,
+        managed_team_ids: editPermTeams,
+        extra_employee_ids: editPermEmployees,
         ...(editPassword ? { password: editPassword } : {}),
       })
       toast.success('تغییرات ذخیره شد')
@@ -184,8 +252,28 @@ export default function UsersPage() {
               )}
             </div>
             <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)', lineHeight: 1.8 }}>
-              مدیر تیم فقط تیم خودش را می‌بیند و امتیازدهی به اعضای همان تیم را انجام می‌دهد؛ کارمند فقط گزارش خودش را می‌بیند.
+              مدیر تیم فقط تیم خودش را می‌بیند و امتیازدهی به اعضای همان تیم را انجام می‌دهد؛ کارمند فقط اطلاعات خودش را می‌بیند.
             </p>
+            {(role === 'manager' || role === 'employee' || role === 'hr') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <PermissionPicker
+                  title="تیم‌های تحت مدیریت"
+                  hint="با تیک زدن، اجازه امتیازدهی و مشاهده اعضای این تیم‌ها را بده (برای افرادی که چند تیم را اداره می‌کنند)"
+                  options={teams}
+                  selected={permTeams}
+                  onChange={setPermTeams}
+                  labelOf={t => (t as Team).name}
+                />
+                <PermissionPicker
+                  title="کارمندان خاص"
+                  hint="با تیک زدن، اجازه امتیازدهی به این کارمندان خاص (خارج از تیم) یا مشاهده پرونده خودِ کاربر را بده"
+                  options={employees}
+                  selected={permEmployees}
+                  onChange={setPermEmployees}
+                  labelOf={e => `${(e as Employee).first_name} ${(e as Employee).last_name} (${(e as Employee).employee_code})`}
+                />
+              </div>
+            )}
             <div className="flex gap-3 mt-4">
               <button onClick={create} disabled={!username || !password || !fullName} className="premium-btn btn-success">ایجاد کاربر</button>
               <button onClick={() => setShowForm(false)} className="premium-btn btn-ghost">لغو</button>
@@ -281,8 +369,7 @@ export default function UsersPage() {
 
       {/* Edit modal */}
       {editUser && (
-        <div className="modal-overlay" onClick={() => setEditUser(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+        <div className="modal-overlay" onClick={() => setEditUser(null)}>            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold flex items-center gap-2"><KeyRound size={17} /> ویرایش کاربر</h3>
               <button className="modal-close" onClick={() => setEditUser(null)}><X size={16} /></button>
@@ -315,6 +402,26 @@ export default function UsersPage() {
                 </label>
                 <input type="password" className="w-full p-2.5 text-sm rounded-xl" value={editPassword} onChange={e => setEditPassword(e.target.value)} style={{ direction: 'ltr', textAlign: 'right' }} />
               </div>
+              {(editRole === 'manager' || editRole === 'employee' || editRole === 'hr') && (
+                <div className="grid grid-cols-1 gap-3">
+                  <PermissionPicker
+                    title="تیم‌های تحت مدیریت"
+                    hint="تیک = اجازه امتیازدهی و مشاهده اعضای آن تیم"
+                    options={teams}
+                    selected={editPermTeams}
+                    onChange={setEditPermTeams}
+                    labelOf={t => (t as Team).name}
+                  />
+                  <PermissionPicker
+                    title="کارمندان خاص"
+                    hint="تیک = اجازه امتیازدهی یا مشاهده آن کارمند خاص"
+                    options={employees}
+                    selected={editPermEmployees}
+                    onChange={setEditPermEmployees}
+                    labelOf={e => `${(e as Employee).first_name} ${(e as Employee).last_name} (${(e as Employee).employee_code})`}
+                  />
+                </div>
+              )}
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={saveEdit} className="premium-btn btn-primary flex-1 justify-center">ذخیره</button>

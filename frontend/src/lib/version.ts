@@ -3,7 +3,7 @@
  * Bump APP_VERSION on every release; add an entry to CHANGELOG (newest first).
  * The About page renders both; the footer/navbar can import APP_VERSION.
  */
-export const APP_VERSION = '1.7.0'
+export const APP_VERSION = '1.8.0'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.8.0',
+    date: '۱۴۰۵/۰۶/۱۹',
+    title: 'دسترسی‌های دانه‌ریز تیک‌بی‌تیک و رفع نمایش دوگانه کارمندان',
+    items: [
+      'مجوزهای تیک‌بی‌تیک در مدیریت کاربران — به هر کاربر بنا به موقعیتش تیک بزنید: مدیر کدام تیم‌ها باشد، به کدام کارمندان خاص نمره بدهد یا پرونده‌شان را ببیند',
+      'پشتیبانی از چند نقش هم‌زمان — مثلاً مدیر منابع انسانی که کارمند هم هست، می‌تواند هم به تیمش نمره بدهد هم پرونده خودش را ببیند؛ یا کسی که دو تیم را اداره می‌کند',
+      'رفع نمایش دوگانه لیست کارمندان در صفحه کارمندان (جدول دسکتاپ و کارت موبایل هم‌زمان نمایش داده می‌شدند)',
+      'بهبود جدول‌های موبایل — کارت‌های فشرده‌تر بدون تکرار',
+      'ورودی/خروجی مجوزها در API کاربران (managed_team_ids و extra_employee_ids)',
+    ],
+  },
   {
     version: '1.7.0',
     date: '۱۴۰۵/۰۶/۱۷',

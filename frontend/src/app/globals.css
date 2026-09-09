@@ -559,6 +559,20 @@ input[type="number"] { -moz-appearance: textfield; }
   box-shadow: var(--shadow-md);
 }
 
+/* Mobile card wrapper — flex only below md (768px); never via inline style
+   so the md:hidden media rule can hide it on desktop without being overridden. */
+.mobile-cards-wrap {
+  display: none;
+}
+@media (max-width: 767px) {
+  .mobile-cards-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+}
+
 /* ════════════════════════════════════════════════════════════════
    FOCUS RINGS — visible keyboard focus everywhere (WCAG 2.4.7)
    ════════════════════════════════════════════════════════════════ */

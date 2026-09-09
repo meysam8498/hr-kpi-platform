@@ -13,6 +13,7 @@ import { useAuth, ROLE_LABELS } from '@/lib/auth-context'
 import { Avatar, EmptyState, TableSkeleton } from '@/components/ui'
 import SearchBox, { matchesQuery } from '@/components/SearchBox'
 import { useToast } from '@/components/Toast'
+import { toPersianNums } from '@/lib/jalali'
 
 interface UserRow {
   id: number
@@ -183,6 +184,37 @@ export default function UsersPage() {
 
   const teamName = (id: number | null) => teams.find(t => t.id === id)?.name || '—'
 
+  /** Compact summary of tick-granted teams + extra employees. */
+  const permSummary = (u: UserRow) => {
+    const tCount = (u.managed_team_ids || []).length
+    const eCount = (u.extra_employee_ids || []).length
+    if (tCount === 0 && eCount === 0) return null
+    const names = (u.managed_team_ids || [])
+      .map(id => teams.find(t => t.id === id)?.name)
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('، ')
+    return (
+      <div style={{ fontSize: '0.68rem', lineHeight: 1.9 }}>
+        {tCount > 0 && (
+          <span className="badge badge-primary" style={{ marginLeft: 4 }} title={names}>
+            {toPersianNums(String(tCount))} تیم
+          </span>
+        )}
+        {eCount > 0 && (
+          <span className="badge badge-info">
+            {toPersianNums(String(eCount))} کارمند
+          </span>
+        )}
+        {names && (
+          <div style={{ color: 'var(--text-tertiary)', marginTop: 2, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {names}{tCount > 2 ? ' و…' : ''}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const roleBadge = (r: UserRow['role']) => {
     const map = {
       admin: 'badge-danger', hr: 'badge-info', manager: 'badge-primary', employee: 'badge-success',
@@ -305,6 +337,7 @@ export default function UsersPage() {
                   <th>کاربر</th>
                   <th>نام کاربری</th>
                   <th>سطح دسترسی</th>
+                  <th>مجوزهای تیک‌خورده</th>
                   <th>تیم</th>
                   <th>وضعیت</th>
                   <th>عملیات</th>
@@ -327,6 +360,7 @@ export default function UsersPage() {
                       {u.username}
                     </td>
                     <td>{roleBadge(u.role)}</td>
+                    <td>{permSummary(u) || <span style={{ color: 'var(--text-tertiary)', fontSize: '0.7rem' }}>—</span>}</td>
                     <td style={{ color: 'var(--text-secondary)' }}>{teamName(u.team_id)}</td>
                     <td>
                       <span className={`badge ${u.is_active ? 'badge-success' : 'badge-danger'}`}>

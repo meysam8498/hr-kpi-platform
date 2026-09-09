@@ -309,6 +309,32 @@ export const selfEvalApi = {
   delete: (id: number) => request(`/api/self-evaluations/${id}`, { method: 'DELETE' }),
 }
 
+// ─── Personal Dashboard (my-tasks) API ───
+export interface MyTask {
+  kind: 'self_eval' | 'peer_review' | 'scoring'
+  title: string
+  description: string
+  href: string
+  names: string[]
+}
+
+export interface MyTasksPayload {
+  period: { id: number; name: string } | null
+  tasks: MyTask[]
+  own_report: {
+    period_name: string
+    self_eval: { submitted: boolean; self_score: number | null; strengths: string | null; improvements: string | null }
+    peer_reviews_given: number
+    peer_reviewees: string[]
+    active_goals: number
+  } | null
+  hr_notice: string
+}
+
+export const dashboardApi = {
+  myTasks: () => request<MyTasksPayload>('/api/dashboard/my-tasks'),
+}
+
 // ─── Custom Report API ───
 export const customReportApi = {
   generate: (data: {

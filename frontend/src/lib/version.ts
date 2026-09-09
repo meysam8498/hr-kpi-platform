@@ -3,7 +3,7 @@
  * Bump APP_VERSION on every release; add an entry to CHANGELOG (newest first).
  * The About page renders both; the footer/navbar can import APP_VERSION.
  */
-export const APP_VERSION = '1.8.0'
+export const APP_VERSION = '1.9.0'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.9.0',
+    date: '۱۴۰۵/۰۶/۱۸',
+    title: 'داشبورد شخصی «کارهای من» برای همه نقش‌ها',
+    items: [
+      'کارهایی که باید انجام دهید، مستقیم در داشبورد با دکمه انجام — خودارزیابی، ارزیابی ۳۶۰ همکاران و امتیازدهی به اعضای تیم بر اساس مجوزهای شما',
+      'وقتی کاری نباشد: خلاصه فعالیت دوره خودتان (خودارزیابی، ارزیابی‌های ثبت‌شده، اهداف فعال) + اطلاع‌رسانی دوره بعد از طرف منابع انسانی',
+      'ستون «مجوزهای تیک‌خورده» در جدول کاربران — تعداد تیم‌ها و کارمندانِ مجاز در یک نگاه',
+      'نمای داشبورد برای هر نقش: کارمند وظایف شخصی می‌بیند، مدیر وظایف تیمی، ادمین/منابع انسانی نمای سازمانی + وظایف تیم‌های تیک‌خورده',
+    ],
+  },
   {
     version: '1.8.0',
     date: '۱۴۰۵/۰۶/۱۹',

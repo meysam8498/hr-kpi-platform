@@ -14,6 +14,8 @@ export interface AuthUser {
   team_id: number | null
   employee_id: number | null
   is_active: boolean
+  managed_team_ids?: number[]
+  extra_employee_ids?: number[]
 }
 
 interface AuthContextValue {

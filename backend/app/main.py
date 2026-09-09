@@ -221,6 +221,8 @@ app.include_router(peer_reviews.router)
 app.include_router(audit.router)
 app.include_router(backup.router)
 app.include_router(pdf_reports.router)
+from app.routes import dashboard as _dashboard_router  # noqa: E402
+app.include_router(_dashboard_router.router)
 
 
 @app.get("/")

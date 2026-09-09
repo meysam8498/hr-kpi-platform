@@ -2,16 +2,24 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Building2, IdCard, Users, Search, BellRing, CheckCircle2 } from 'lucide-react'
+import { Building2, IdCard, Users, Search, BellRing, CheckCircle2, ClipboardPen, Star, ArrowLeft, Megaphone, ClipboardCheck, Target } from 'lucide-react'
 import AppLayout from '@/components/Layout'
-import { teamsApi, employeesApi, kpiApi, notificationsApi } from '@/lib/api'
-import type { Team, Employee, ReportingPeriod } from '@/lib/api'
+import { teamsApi, employeesApi, kpiApi, notificationsApi, dashboardApi } from '@/lib/api'
+import type { Team, Employee, ReportingPeriod, MyTasksPayload, MyTask } from '@/lib/api'
+import { useAuth } from '@/lib/auth-context'
 import { gregorianToJalaliStr, toPersianNums } from '@/lib/jalali'
 import { Avatar, CountUp, EmptyState, TableSkeleton, CardsSkeleton } from '@/components/ui'
 import DataTable from '@/components/DataTable'
 import Sparkline from '@/components/Sparkline'
 
+const TASK_ICON: Record<MyTask['kind'], typeof ClipboardPen> = {
+  self_eval: ClipboardPen,
+  peer_review: Users,
+  scoring: Star,
+}
+
 export default function DashboardPage() {
+  const { user: me } = useAuth()
   const [teams, setTeams] = useState<Team[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [periods, setPeriods] = useState<ReportingPeriod[]>([])
@@ -22,7 +30,12 @@ export default function DashboardPage() {
   const [remindMsg, setRemindMsg] = useState('')
   const [teamTrends, setTeamTrends] = useState<Record<number, number[]>>({})
   const [showAllEmployees, setShowAllEmployees] = useState(false)
+  const [myTasks, setMyTasks] = useState<MyTasksPayload | null>(null)
   const PREVIEW_COUNT = 8
+
+  useEffect(() => {
+    dashboardApi.myTasks().then(setMyTasks).catch(() => setMyTasks(null))
+  }, [])
 
   const sendReminder = async () => {
     if (!activePeriod || remindState === 'busy') return
@@ -170,6 +183,146 @@ export default function DashboardPage() {
             <ClockChip />
           </div>
         </div>
+
+        {/* ─── My Tasks / Own Report (role-aware, everyone sees this) ─── */}
+        {myTasks && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{ marginTop: 24 }}>
+            {/* Tasks column */}
+            <div className="lg:col-span-2 card" style={{ padding: 20 }}>
+              <div className="card-header">
+                <div className="card-header-title">
+                  <span className="card-header-icon"><ClipboardCheck size={14} /></span>
+                  کارهای من
+                  {myTasks.period && (
+                    <span className="badge badge-info" style={{ marginRight: 8 }}>
+                      دوره: {myTasks.period.name}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {myTasks.tasks.length === 0 ? (
+                <div>
+                  <div className="flex items-center gap-3" style={{ padding: '10px 0' }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                      background: 'rgba(80,201,144,0.14)', color: 'var(--accent-success)',
+                    }}>
+                      <CheckCircle2 size={19} />
+                    </span>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        همه کارهای این دوره انجام شده 🎉
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                        {myTasks.period
+                          ? `فعالیت شما در دوره «${myTasks.period.name}» در خلاصه کنار دیده می‌شود.`
+                          : 'در حال حاضر دوره فعالی وجود ندارد.'}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    className="flex items-center gap-2"
+                    style={{
+                      marginTop: 8, padding: '10px 14px', borderRadius: 10,
+                      background: 'var(--surface-2)', border: '1px dashed var(--border-primary)',
+                      fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.9,
+                    }}
+                  >
+                    <Megaphone size={14} style={{ flexShrink: 0, color: 'var(--accent-info)' }} />
+                    {myTasks.hr_notice}
+                  </div>
+                </div>
+              ) : (
+                <div className="stagger-children">
+                  {myTasks.tasks.map(t => {
+                    const Icon = TASK_ICON[t.kind] || ClipboardPen
+                    return (
+                      <Link
+                        key={t.kind + t.title}
+                        href={t.href}
+                        className="flex items-center gap-3"
+                        style={{
+                          padding: '12px 14px', borderRadius: 12, marginBottom: 6,
+                          border: '1px solid var(--border-primary)', background: 'var(--surface-2)',
+                          transition: 'transform 0.15s ease, border-color 0.15s ease',
+                        }}
+                      >
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                          background: 'var(--gradient-primary)', color: '#fff',
+                        }}>
+                          <Icon size={18} />
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.83rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {t.title}
+                            {t.names.length > 0 && (
+                              <span style={{ fontWeight: 400, fontSize: '0.7rem', color: 'var(--text-tertiary)', marginRight: 8 }}>
+                                {t.names.slice(0, 3).join('، ')}{t.names.length > 3 ? ' و…' : ''}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                            {t.description}
+                          </div>
+                        </div>
+                        <span className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>
+                          انجام <ArrowLeft size={12} />
+                        </span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Own-period summary column */}
+            <div className="card" style={{ padding: 20 }}>
+              <div className="card-header">
+                <div className="card-header-title">
+                  <span className="card-header-icon"><Target size={14} /></span>
+                  خلاصه دوره شما
+                </div>
+              </div>
+              {myTasks.own_report ? (
+                <div className="space-y-2.5" style={{ marginTop: 6 }}>
+                  <div className="flex items-center justify-between" style={{ fontSize: '0.76rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>خودارزیابی</span>
+                    {myTasks.own_report.self_eval.submitted ? (
+                      <span className="badge badge-success">ثبت شد · {toPersianNums(String(Math.round(myTasks.own_report.self_eval.self_score ?? 0)))}</span>
+                    ) : (
+                      <span className="badge badge-warning">ثبت نشده</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between" style={{ fontSize: '0.76rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>ارزیابی ۳۶۰ ثبت‌شده</span>
+                    <span className="badge badge-primary">{toPersianNums(String(myTasks.own_report.peer_reviews_given))}</span>
+                  </div>
+                  <div className="flex items-center justify-between" style={{ fontSize: '0.76rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>اهداف فعال</span>
+                    <span className="badge badge-info">{toPersianNums(String(myTasks.own_report.active_goals))}</span>
+                  </div>
+                  {myTasks.own_report.peer_reviewees.length > 0 && (
+                    <div style={{
+                      fontSize: '0.68rem', color: 'var(--text-tertiary)', lineHeight: 1.9,
+                      padding: '8px 10px', borderRadius: 8, background: 'var(--surface-2)', marginTop: 4,
+                    }}>
+                      به این همکاران نمره داده‌اید: {myTasks.own_report.peer_reviewees.join('، ')}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={ClipboardCheck}
+                  title="پرونده کارمندی ندارید"
+                  description="حساب شما به پرونده کارمندی متصل نیست؛ فقط وظایف مدیریتی‌تان اینجا دیده می‌شود."
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Period Selector */}
         {activePeriods.length > 1 && (

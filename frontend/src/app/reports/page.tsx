@@ -5,7 +5,9 @@ import HeadIcon from '@/components/HeadIcon'
 import AppLayout from '@/components/Layout'
 import { teamsApi, employeesApi, kpiApi, goalsApi, authApi } from '@/lib/api'
 import type { Team, Employee, ReportingPeriod, Goal, PeriodCompare } from '@/lib/api'
+import { useAuth } from '@/lib/auth-context'
 import { toPersianNums } from '@/lib/jalali'
+import { useToast } from '@/components/Toast'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar } from 'recharts'
 import { Printer, UserRound, ClipboardList, PieChart, ListChecks, Info, FileDown, GitCompareArrows } from 'lucide-react'
 import { ScorePill, EmptyState, Avatar, TableSkeleton } from '@/components/ui'
@@ -87,6 +89,10 @@ export default function ReportsPage() {
   const [view, setView] = useState<'team' | 'employee' | 'compare'>('team')
   const [loading, setLoading] = useState(true)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [downloadingCompanyPdf, setDownloadingCompanyPdf] = useState(false)
+  const [pdfError, setPdfError] = useState('')
+  const { user: me } = useAuth()
+  const toast = useToast()
 
   // Compare mode state
   const [cmpEmp, setCmpEmp] = useState<number>(0)
@@ -145,14 +151,31 @@ export default function ReportsPage() {
   const downloadTeamPdf = async () => {
     if (!selectedTeam || !selectedPeriod) return
     setDownloadingPdf(true)
-    try { await authApi.downloadFile(kpiApi.pdfTeamUrl(selectedTeam, selectedPeriod), 'GET', undefined, 'team-report.pdf') }
-    catch (e) { alert((e as Error).message) }
+    setPdfError('')
+    try {
+      await authApi.downloadFile(kpiApi.pdfTeamUrl(selectedTeam, selectedPeriod), 'GET', undefined, 'team-report.pdf')
+      toast.success('گزارش PDF تیم دانلود شد')
+    } catch (e) { setPdfError((e as Error).message || 'خطا در دریافت گزارش PDF') }
     finally { setDownloadingPdf(false) }
   }
 
+  const downloadCompanyPdf = async () => {
+    if (!selectedPeriod) return
+    setDownloadingCompanyPdf(true)
+    setPdfError('')
+    try {
+      await authApi.downloadFile(kpiApi.pdfCompanyUrl(selectedPeriod), 'GET', undefined, 'company-report.pdf')
+      toast.success('گزارش سازمانی PDF دانلود شد')
+    } catch (e) { setPdfError((e as Error).message || 'خطا در دریافت گزارش سازمانی') }
+    finally { setDownloadingCompanyPdf(false) }
+  }
+
   const downloadEmpPdf = async (empId: number, periodId: number) => {
-    try { await authApi.downloadFile(kpiApi.pdfEmployeeUrl(empId, periodId), 'GET', undefined, 'employee-report.pdf') }
-    catch (e) { alert((e as Error).message) }
+    setPdfError('')
+    try {
+      await authApi.downloadFile(kpiApi.pdfEmployeeUrl(empId, periodId), 'GET', undefined, 'employee-report.pdf')
+      toast.success('گزارش PDF کارمند دانلود شد')
+    } catch (e) { setPdfError((e as Error).message || 'خطا در دریافت گزارش PDF') }
   }
 
   const historyData = empResults
@@ -198,7 +221,33 @@ export default function ReportsPage() {
               <FileDown size={15} /> {downloadingPdf ? 'در حال تهیه...' : 'دانلود PDF تیم'}
             </button>
           )}
+          {view === 'team' && me && (me.role === 'admin' || me.role === 'hr') && (
+            <button className="btn btn-primary" onClick={downloadCompanyPdf} disabled={downloadingCompanyPdf} style={{ marginRight: 8 }}>
+              <FileDown size={15} /> {downloadingCompanyPdf ? 'در حال تهیه...' : 'PDF کل سازمان'}
+            </button>
+          )}
         </div>
+
+        {pdfError && (
+          <div
+            className="no-print flex items-center gap-2 animate-slideUp"
+            style={{
+              padding: '10px 16px', borderRadius: 12, marginBottom: 16,
+              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
+              color: 'var(--accent-danger)', fontSize: '0.8rem', fontWeight: 600,
+            }}
+          >
+            <span style={{ fontSize: '1rem' }}>⚠️</span>
+            {pdfError}
+            <button
+              onClick={() => setPdfError('')}
+              className="mr-auto text-xs"
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}
+            >
+              بستن ✕
+            </button>
+          </div>
+        )}
 
         {/* View Toggle */}
         <div className="no-print flex gap-2 p-1 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', marginBottom: 16 }}>

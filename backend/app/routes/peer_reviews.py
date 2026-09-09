@@ -14,6 +14,7 @@ from ..schemas import PeerReviewCreate, PeerReviewUpdate, PeerReviewOut
 from ..auth import (
     get_current_user, require_manager_plus, require_admin_or_hr,
     ensure_employee_in_scope, ensure_own_employee,
+    visible_team_ids, can_touch_employee,
 )
 
 router = APIRouter(prefix="/api/peer-reviews", tags=["Peer Reviews"])
@@ -53,8 +54,11 @@ def list_reviews(
         query = query.filter(
             (PeerReview.reviewer_id == user.employee_id) | (PeerReview.reviewee_id == user.employee_id)
         )
-    elif user.role == "manager" and user.team_id is not None:
-        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id == user.team_id).all()]
+    elif user.role == "manager":
+        tids = visible_team_ids(user) or []
+        if not tids:
+            return []
+        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id.in_(tids)).all()]
         query = query.filter(
             PeerReview.reviewer_id.in_(team_emp_ids) | PeerReview.reviewee_id.in_(team_emp_ids)
         )
@@ -85,8 +89,8 @@ def create_review(request: PeerReviewCreate, db: Session = Depends(get_db), user
     # 360 evaluation is strictly within the same team
     if reviewer.team_id is None or reviewee.team_id is None or reviewer.team_id != reviewee.team_id:
         raise HTTPException(status_code=403, detail="ارزیابی ۳۶۰ فقط بین همکاران تیم خودتان امکان‌پذیر است")
-    if user.role == "manager" and user.team_id is not None and reviewer.team_id != user.team_id:
-        raise HTTPException(status_code=403, detail="ارزیابی خارج از تیم شما مجاز نیست")
+    if user.role == "manager" and not can_touch_employee(user, reviewer):
+        raise HTTPException(status_code=403, detail="ارزیابی خارج از تیم‌های شما مجاز نیست")
     period = db.query(ReportingPeriod).filter(ReportingPeriod.id == request.period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="دوره یافت نشد")
@@ -114,10 +118,10 @@ def update_review(review_id: int, request: PeerReviewUpdate, db: Session = Depen
     # Only the original reviewer (or admin/HR) can edit a review
     if user.role == "employee" and (user.employee_id is None or review.reviewer_id != user.employee_id):
         raise HTTPException(status_code=403, detail="فقط ارزیاب می‌تواند ارزیابی خودش را ویرایش کند")
-    if user.role == "manager" and user.team_id is not None:
+    if user.role == "manager":
         reviewer = db.query(Employee).filter(Employee.id == review.reviewer_id).first()
-        if reviewer and reviewer.team_id != user.team_id:
-            raise HTTPException(status_code=403, detail="این ارزیابی متعلق به تیم شما نیست")
+        if reviewer and not can_touch_employee(user, reviewer):
+            raise HTTPException(status_code=403, detail="این ارزیابی متعلق به تیم‌های شما نیست")
     for field, value in request.model_dump(exclude_unset=True).items():
         setattr(review, field, value)
     db.commit()
@@ -133,10 +137,10 @@ def delete_review(review_id: int, db: Session = Depends(get_db), user: User = De
     # Employees can delete only their own review; managers their team's; admin/HR any
     if user.role == "employee" and (user.employee_id is None or review.reviewer_id != user.employee_id):
         raise HTTPException(status_code=403, detail="فقط ارزیاب می‌تواند ارزیابی خودش را حذف کند")
-    if user.role == "manager" and user.team_id is not None:
+    if user.role == "manager":
         reviewer = db.query(Employee).filter(Employee.id == review.reviewer_id).first()
-        if reviewer and reviewer.team_id != user.team_id:
-            raise HTTPException(status_code=403, detail="این ارزیابی متعلق به تیم شما نیست")
+        if reviewer and not can_touch_employee(user, reviewer):
+            raise HTTPException(status_code=403, detail="این ارزیابی متعلق به تیم‌های شما نیست")
     db.delete(review)
     db.commit()
     return {"message": "ارزیابی حذف شد"}

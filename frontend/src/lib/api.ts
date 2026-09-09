@@ -221,6 +221,7 @@ export const kpiApi = {
     request<PeriodCompare>(`/api/kpi/compare/${empId}/${periodA}/${periodB}`),
   pdfEmployeeUrl: (empId: number, periodId: number) => `${API_BASE}/api/pdf/employee/${empId}/${periodId}`,
   pdfTeamUrl: (teamId: number, periodId: number) => `${API_BASE}/api/pdf/team/${teamId}/${periodId}`,
+  pdfCompanyUrl: (periodId: number) => `${API_BASE}/api/pdf/company/${periodId}`,
   teamReport: (teamId: number, periodId: number) =>
     request<Record<string, unknown>>(`/api/kpi/reports/team/${teamId}/${periodId}`),
   companyReport: (periodId: number) =>
@@ -659,12 +660,14 @@ export const authApi = {
     return body as { message: string }
   },
   // Generic authenticated download (PDF / Excel with JSON POST body)
-  downloadFile: async (path: string, method: 'GET' | 'POST' = 'GET', json?: unknown, fallbackName = 'report.pdf') => {
+  // Accepts either a path (prefixed with API_BASE) or an absolute URL.
+  downloadFile: async (pathOrUrl: string, method: 'GET' | 'POST' = 'GET', json?: unknown, fallbackName = 'report.pdf') => {
     const headers: Record<string, string> = {}
     const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth-token') : null
     if (token) headers['Authorization'] = `Bearer ${token}`
     if (json) headers['Content-Type'] = 'application/json'
-    const res = await fetch(`${API_BASE}${path}`, { method, headers, body: json ? JSON.stringify(json) : undefined })
+    const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API_BASE}${pathOrUrl}`
+    const res = await fetch(url, { method, headers, body: json ? JSON.stringify(json) : undefined })
     if (!res.ok) {
       const body = await res.json().catch(() => ({ detail: 'خطا در دریافت فایل' }))
       throw new Error(body.detail || 'خطا در دریافت فایل')
@@ -676,13 +679,13 @@ export const authApi = {
     let filename = fallbackName
     if (utf8Match) filename = decodeURIComponent(utf8Match[1])
     else if (plainMatch) filename = plainMatch[1].trim()
-    const url = URL.createObjectURL(blob)
+    const blobUrl = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
+    a.href = blobUrl
     a.download = filename
     document.body.appendChild(a)
     a.click()
     a.remove()
-    URL.revokeObjectURL(url)
+    URL.revokeObjectURL(blobUrl)
   },
 }

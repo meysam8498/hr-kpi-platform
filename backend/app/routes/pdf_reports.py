@@ -17,7 +17,7 @@ from ..models import (
 )
 from ..pdf import KPIPDF, build_pdf, score_color, fonts_available, _fa_num, _shape
 from ..utils.jalali import gregorian_to_jalali
-from ..auth import get_current_user, require_manager_plus
+from ..auth import get_current_user, require_manager_plus, require_admin_or_hr, can_touch_employee, can_manage_team
 from ..models import User
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF Reports"])
@@ -47,8 +47,8 @@ def employee_pdf(employee_id: int, period_id: int, db: Session = Depends(get_db)
         raise HTTPException(status_code=503, detail="فونت PDF نصب نیست")
     if user.role == "manager":
         emp = db.query(Employee).filter(Employee.id == employee_id).first()
-        if emp and user.team_id is not None and emp.team_id != user.team_id:
-            raise HTTPException(status_code=403, detail="این کارمند در تیم شما نیست")
+        if emp and not can_touch_employee(user, emp):
+            raise HTTPException(status_code=403, detail="این کارمند در تیم‌های شما نیست")
 
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
     if not emp:
@@ -153,8 +153,8 @@ def employee_pdf(employee_id: int, period_id: int, db: Session = Depends(get_db)
 def team_pdf(team_id: int, period_id: int, db: Session = Depends(get_db), user: User = Depends(require_manager_plus)):
     if not fonts_available():
         raise HTTPException(status_code=503, detail="فونت PDF نصب نیست")
-    if user.role == "manager" and user.team_id is not None and team_id != user.team_id:
-        raise HTTPException(status_code=403, detail="فقط گزارش تیم خودتان در دسترس شماست")
+    if user.role == "manager" and not can_manage_team(user, team_id):
+        raise HTTPException(status_code=403, detail="فقط گزارش تیم‌های شما در دسترس شماست")
 
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
@@ -211,4 +211,100 @@ def team_pdf(team_id: int, period_id: int, db: Session = Depends(get_db), user: 
         buf,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=team_report.pdf; filename*=UTF-8''{fname}"},
+    )
+
+
+@router.get("/company/{period_id}")
+def company_pdf(period_id: int, db: Session = Depends(get_db), user: User = Depends(require_admin_or_hr)):
+    """Company-wide report: every team's summary + full employee ranking in one PDF.
+    Admin/HR only.
+    """
+    if not fonts_available():
+        raise HTTPException(status_code=503, detail="فونت PDF نصب نیست")
+
+    period = db.query(ReportingPeriod).filter(ReportingPeriod.id == period_id).first()
+    if not period:
+        raise HTTPException(status_code=404, detail="دوره یافت نشد")
+
+    employees = db.query(Employee).filter(Employee.is_archived == False).all()  # noqa: E712
+    rows = []
+    team_scores: dict[int, list[float]] = {}
+    for emp in employees:
+        r = db.query(KPIResult).filter(
+            KPIResult.employee_id == emp.id, KPIResult.period_id == period_id
+        ).first()
+        if r:
+            team = db.query(Team).filter(Team.id == emp.team_id).first()
+            rows.append({
+                "name": emp.full_name,
+                "code": emp.employee_code,
+                "position": emp.position or "—",
+                "team": team.name if team else "—",
+                "score": r.final_score,
+            })
+            if team:
+                team_scores.setdefault(team.id, []).append(r.final_score)
+    if not rows:
+        raise HTTPException(status_code=404, detail="برای این دوره نمره‌ای محاسبه نشده است")
+
+    all_scores = [r["score"] for r in rows]
+    company_avg = sum(all_scores) / len(all_scores)
+    teams = db.query(Team).order_by(Team.name).all()
+
+    def render():
+        pdf = KPIPDF(title=f"گزارش سازمانی — {period.name}")
+        pdf.add_page()
+
+        pdf.title_bar(f"گزارش سازمانی {_fa_num(period.name)}")
+
+        pdf.section("خلاصه شرکت")
+        pdf.kv_row("تعداد کارمندان نمره‌داده‌شده:", _fa_num(len(rows)))
+        pdf.kv_row("میانگین شرکت:", _fa_score(company_avg))
+        pdf.kv_row("بیشترین نمره:", _fa_score(max(all_scores)))
+        pdf.kv_row("کمترین نمره:", _fa_score(min(all_scores)))
+
+        # ─── Per-team summary ───
+        pdf.section("میانگین تیم‌ها")
+        team_rows = []
+        for t in teams:
+            scores = team_scores.get(t.id)
+            if scores:
+                team_rows.append([
+                    t.name,
+                    _fa_num(len(scores)),
+                    _fa_score(sum(scores) / len(scores)),
+                    _fa_score(max(scores)),
+                    _fa_score(min(scores)),
+                ])
+        pdf.table(
+            ["تیم", "نفرات", "میانگین", "بیشترین", "کمترین"],
+            team_rows, [58, 22, 30, 30, 30],
+        )
+
+        # ─── Full employee ranking ───
+        pdf.add_page()
+        pdf.section("جدول کامل کارمندان (مرتب بر اساس نمره)")
+        emp_rows = []
+        for r in sorted(rows, key=lambda x: x["score"], reverse=True):
+            emp_rows.append([
+                r["name"],
+                _fa_num(r["code"]),
+                r["position"][:28],
+                r["team"],
+                _fa_score(r["score"]),
+            ])
+        pdf.table(
+            ["نام", "کد پرسنلی", "سمت", "تیم", "نمره نهایی"],
+            emp_rows, [46, 22, 56, 34, 22], score_col=4,
+        )
+
+        return pdf
+
+    buf = build_pdf(render)
+    from urllib.parse import quote
+    fname = quote(f"گزارش-سازمانی-{period.name}.pdf")
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=company_report.pdf; filename*=UTF-8''{fname}"},
     )

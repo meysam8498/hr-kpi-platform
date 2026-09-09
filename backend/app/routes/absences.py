@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import AbsenceRecord, Employee, Team, User
-from ..auth import get_current_user, require_manager_plus, require_admin_or_hr
+from ..auth import get_current_user, require_manager_plus, require_admin_or_hr, visible_team_ids
 from ..schemas import AbsenceCreate, AbsenceOut
 
 router = APIRouter(prefix="/api/absences", tags=["Absences"])
@@ -42,8 +42,11 @@ def list_absences(
         if user.employee_id is None:
             return []
         query = query.filter(AbsenceRecord.employee_id == user.employee_id)
-    elif user.role == "manager" and user.team_id is not None:
-        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id == user.team_id).all()]
+    elif user.role == "manager":
+        tids = visible_team_ids(user) or []
+        if not tids:
+            return []
+        team_emp_ids = [e.id for e in db.query(Employee).filter(Employee.team_id.in_(tids)).all()]
         query = query.filter(AbsenceRecord.employee_id.in_(team_emp_ids))
     if employee_id:
         query = query.filter(AbsenceRecord.employee_id == employee_id)

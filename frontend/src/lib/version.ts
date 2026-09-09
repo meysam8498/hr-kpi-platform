@@ -3,7 +3,7 @@
  * Bump APP_VERSION on every release; add an entry to CHANGELOG (newest first).
  * The About page renders both; the footer/navbar can import APP_VERSION.
  */
-export const APP_VERSION = '1.9.1'
+export const APP_VERSION = '1.10.0'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.0',
+    date: '۱۴۰۵/۰۶/۱۸',
+    title: 'گزارش PDF کل سازمان + داده دوم برای فیلتر تاریخ',
+    items: [
+      'خروجی PDF سازمانی (ادمین/منابع انسانی): خلاصه شرکت، میانگین هر تیم و جدول کامل رتبه‌بندی همه کارمندان در یک فایل',
+      'دوره دوم «بهار ۱۴۰۵» با نمرات محاسبه‌شده اضافه شد — فیلتر بازه تاریخ در گزارش سفارشی اکنون قابل تست واقعی است',
+      'رفع خطای URL تکراری در دانلود گزارش‌ها (دکمه PDF کل سازمان کار نمی‌کرد)',
+      'پیام‌های خطای گزارش به‌صورت بنر فارسی داخل صفحه به‌جای alert مرورگر + اعلان موفقیت دانلود',
+    ],
+  },
   {
     version: '1.9.1',
     date: '۱۴۰۵/۰۶/۱۸',
